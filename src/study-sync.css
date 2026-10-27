@@ -1,0 +1,7 @@
+.study-sync-status{box-sizing:border-box;max-width:960px;margin:8px auto;padding:0 18px;font:400 12px/1.5 system-ui,sans-serif;color:#52666c;overflow-wrap:anywhere;min-height:18px}.study-sync-status[data-state="saved"]{color:#315d4c}.study-sync-status a{color:inherit;text-decoration:underline;padding:10px 0;display:inline-block}
+
+.study-overview-notice{max-width:960px;margin:20px auto;padding:0 20px;font-size:12px;line-height:1.6;color:#52666c}.study-overview-notice a{color:inherit}
+
+.study-sync-controls{max-width:960px;margin:0 auto;padding:0 18px;box-sizing:border-box}.study-sync-controls button{background:transparent;border:1px solid #a4bab8;border-radius:8px;color:#315d56;font:500 12px/1.5 system-ui,sans-serif;min-height:44px;padding:8px 12px;cursor:pointer}.study-sync-controls button:disabled{opacity:.5;cursor:default}.study-sync-controls button:focus-visible{outline:3px solid #a94a28;outline-offset:2px}
+
+#study-sync-now[hidden]{display:none}
