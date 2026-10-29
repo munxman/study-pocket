@@ -1,6 +1,6 @@
 'use strict';
 (function(root){
-  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1'];
+  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1'];
   const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   const object=x=>x&&typeof x==='object'&&!Array.isArray(x);
@@ -54,7 +54,10 @@
       else out[k]=mergeObject(base?.[k],local[k],remote[k]);
     }return out;
   }
+function mergeTrial(base,local,remote){if(!local)return clone(remote);if(!remote)return clone(local);const out={version:1,serial:0,cards:{},sessions:[],activeId:null},map=new Map();for(const a of [...remote.sessions,...local.sessions]){const old=map.get(a.id);if(!old){map.set(a.id,clone(a));continue;}const rank=x=>({timed:0,choice:1,untimed:2,review:3}[x.status]||0);const winner=clone(rank(a)>rank(old)||rank(a)===rank(old)&&a.updatedAt>old.updatedAt?a:old);const frozen=old.timedSubmittedAt?old:a.timedSubmittedAt?a:null;if(frozen)for(const k of ['timedAnswers','timedConfidence','results','timedResult','timedSubmittedAt','completedAt','deadline','expired','repeated','startedAt'])winner[k]=clone(frozen[k]);map.set(a.id,winner);}out.sessions=[...map.values()].sort((a,b)=>a.startedAt-b.startedAt);out.serial=Math.max(local.serial||0,remote.serial||0);out.activeId=base&&local.activeId===base.activeId?remote.activeId:local.activeId;return out;}
+
   function merge(module,base,local,remote){
+    if(module==='hendrik-imat-trial-v1')return mergeTrial(base,local,remote);
     if(module==='hendrik-study-chain-v1'){
       const repairs={};for(const x of [remote,local])for(const [d,t] of Object.entries(x?.repairs||{}))if(/^\d{4}-\d{2}-\d{2}$/.test(d)&&Number.isFinite(t)&&t>0)repairs[d]=Math.min(repairs[d]||Infinity,t);
       return {version:1,repairs};

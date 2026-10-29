@@ -89,6 +89,7 @@ export function summarize(modules,period='7',now=Date.now()) {
   const nerve=array(modules['hendrik-nerves-feedback-v1']?.firstAnswers).filter(x=>typeof x==='boolean');
   report.nerve={answered:nerve.length,correct:nerve.filter(Boolean).length}; // Lifetime, no reliable answer dates.
   report.english=summarizeEnglish(modules['hendrik-ielts-v1'],since,now);
+  report.trials=unique(array(modules['hendrik-imat-trial-v1']?.sessions)).filter(s=>inRange(s.timedSubmittedAt)).map(s=>({id:s.id,at:s.timedSubmittedAt,paper:s.paper,repeated:!!s.repeated,timed:s.timedResult,untimed:s.secondResult||null}));
   report.activeDays=activity.size;report.lastAnswer=lastAnswer;
   report.days=[...activity].sort(([a],[b])=>a.localeCompare(b)).map(([date,answers])=>({date,answers}));
   report.timeline=timeline.sort((a,b)=>b.at-a.at).slice(0,12);

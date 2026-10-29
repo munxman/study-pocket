@@ -1,6 +1,6 @@
 'use strict';
 (function(root){
- const KEY='hendrik-study-chain-v1',DAY=86400000,KEYS=['hendrik-bio-basics-v1','hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-ielts-v1'];
+ const KEY='hendrik-study-chain-v1',DAY=86400000,KEYS=['hendrik-bio-basics-v1','hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-ielts-v1','hendrik-imat-trial-v1'];
  const day=t=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Tallinn',year:'numeric',month:'2-digit',day:'2-digit'}).format(t);
  const ordinal=d=>Date.parse(d+'T12:00:00Z')/DAY;
  const shift=(d,n)=>new Date((ordinal(d)+n)*DAY).toISOString().slice(0,10);
@@ -32,7 +32,7 @@
    const unique=new Map();
    for(const s of array(modules[key]?.sessions)){
     if(!s||typeof s.id!=='string'||!valid(s.completedAt))continue;
-    const meaningful=index===0?typeof s.checkCorrect==='boolean':index===1?typeof s.correct==='boolean':index===2?s.completed===true&&array(s.answers).some(a=>typeof a?.correct==='boolean'):s.status==='submitted'&&(array(s.results).some(r=>typeof r?.correct==='boolean'&&!r.blank)||Object.values(s.texts||{}).some(t=>typeof t==='string'&&t.trim())||s.recorded===true);
+    const meaningful=index===4?!!s.timedSubmittedAt&&(s.timedResult?.correct+s.timedResult?.wrong>0):index===0?typeof s.checkCorrect==='boolean':index===1?typeof s.correct==='boolean':index===2?s.completed===true&&array(s.answers).some(a=>typeof a?.correct==='boolean'):s.status==='submitted'&&(array(s.results).some(r=>typeof r?.correct==='boolean'&&!r.blank)||Object.values(s.texts||{}).some(t=>typeof t==='string'&&t.trim())||s.recorded===true);
     if(!meaningful)continue;
     // One completion per session; later duplicate copies never add another day.
     const old=unique.get(s.id);if(!old||s.completedAt<old.completedAt)unique.set(s.id,s);
