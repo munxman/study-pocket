@@ -39,16 +39,19 @@
  function leastRecent(s,c,pool,exclude=null){const used=new Map();for(const a of s.sessions.filter(a=>a.concept===c.id)){if(a.answeredAt)used.set(a.questionIndex??(a.level==='application'?1:0),Math.max(used.get(a.questionIndex??(a.level==='application'?1:0))||0,a.answeredAt));if(a.completedAt)used.set(a.retryIndex??2,Math.max(used.get(a.retryIndex??2)||0,a.completedAt));}return pool.filter(i=>i!==exclude).sort((a,b)=>(used.get(a)||0)-(used.get(b)||0))[0];}
  function recommend(s,bank,now=Date.now()){
    const last=[...s.sessions].filter(a=>a.completedAt).sort((a,b)=>b.completedAt-a.completedAt)[0];
-   const available=c=>!c.targeted||(!bank.concepts.find(x=>x.id===last?.concept)?.targeted&&!(s.cards[c.id]?.lastExposure>now-DAY));
+   const available=c=>c.targeted?(!bank.concepts.find(x=>x.id===last?.concept)?.targeted&&!(s.cards[c.id]?.lastExposure>now-DAY)):!c.questionFirst||!(s.cards[c.id]?.lastExposure>now-DAY);
    const due=bank.concepts.filter(c=>s.cards[c.id]&&s.cards[c.id].due<=now&&available(c)).sort((a,b)=>s.cards[a.id].due-s.cards[b.id].due);
    const focus=due.find(c=>c.targeted&&(s.cards[c.id].failures>0||s.cards[c.id].highPending));
-   return focus||due[0]||bank.concepts.find(c=>!s.cards[c.id]&&available(c))||null;
+   const unseen=bank.concepts.find(c=>!s.cards[c.id]&&available(c));
+   // A completed review must not let the due backlog consume every short block.
+   if(last?.review&&unseen)return unseen;
+   return focus||due[0]||unseen||null;
  }
  function start(s,bank,now=Date.now(),preferred=null,allowPractice=false){
    const old=active(s);if(old&&!old.closed){if(old.stage!=='done'||now-old.completedAt<12*HOUR)return old;old.closed=true;s.activeId=null;}
    const concept=bank.concepts.find(c=>c.id===preferred)||recommend(s,bank,now)||(allowPractice?bank.concepts.filter(c=>s.cards[c.id]&&!c.targeted).sort((a,b)=>s.cards[a.id].lastExposure-s.cards[b.id].lastExposure)[0]:null);if(!concept)return null;const c=s.cards[concept.id],review=!!c,scaffold=!!c&&c.failures>=2;
    const session={id:'i'+(++s.serial)+'-'+(root.crypto?.randomUUID?.()||Math.random().toString(36).slice(2)),concept:concept.id,level:c?.recalls>=2?'application':'basic',stage:review&&!scaffold?'question':'lesson',startedAt:now,selected:null,confidence:null,paraphrased:false,retryParaphrased:false,retrySelected:null,error:null,answeredAt:0,completedAt:0,correct:null,delayedProbe:null,retryAnswers:[],retryErrors:[],retrySubmitted:false,assisted:!review||scaffold,scaffold,englishHelp:false,moreChosen:false,review,closed:false};
-   if(concept.targeted){session.targetedPractice=true;session.stage='question';session.assisted=false;session.scaffold=false;session.questionIndex=leastRecent(s,concept,concept.probeQuestions);session.retryIndex=concept.supportQuestions[0];}
+   if(concept.targeted||concept.questionFirst){session.targetedPractice=true;session.stage='question';session.assisted=false;session.scaffold=false;session.questionIndex=leastRecent(s,concept,concept.probeQuestions);session.retryIndex=concept.supportQuestions[0];}
    s.sessions.push(session);s.activeId=session.id;return session;
  }
  function expose(s,now=Date.now()){const a=active(s);if(!a)return;a.assisted=true;const c=s.cards[a.concept];if(c)c.lastExposure=now;}
