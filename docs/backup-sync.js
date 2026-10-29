@@ -13,7 +13,7 @@
  const save=()=>write(localStorage,KEY,JSON.stringify(connection));
  async function request(path,method='GET',body){
   const r=await fetch(API+path,{method,credentials:'omit',cache:'no-store',headers:{...(connection?.key?{Authorization:'Bearer '+connection.key}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(25000)});
-  if(r.status===401){const e=Error('Reconnect');e.auth=true;throw e;}if(r.status===409){const e=Error('Conflict');e.conflict=true;throw e;}
+  if(r.status===401){const e=Error('Reconnect');e.auth=true;throw e;}if(r.status===409){const e=Error('Conflict');e.conflict=true;e.pairUsed=path==='/pair';throw e;}
   if(!r.ok)throw Error('Sync unavailable');const v=await r.json();if(v.error)throw Error('Sync unavailable');return v;
  }
  async function sync(){
@@ -36,7 +36,7 @@
    }
    const latest=S.snapshot().modules,pending=window.BackupModel.keys.some(k=>latest[k]&&JSON.stringify(latest[k])!==JSON.stringify(connection.base[k])&&(latest[k].sessions?.length||Object.keys(latest[k].repairs||{}).length));
    connection.lastSync=Date.now();save();
-   say(pending?txt('Töö on seadmes. Uued vastused ootavad saatmist.','Saved here. New answers are waiting to upload.'):reportingPending?txt('Töö on kontol. Õpiülevaade uueneb järgmisel ühendusel.','Work saved to your account. Reporting will refresh on the next connection.'):txt('Sünkroonitud · varasem ja uus töö koos','Synced · previous and new work together'));
+   say(pending?txt('Töö on seadmes. Uued vastused ootavad saatmist.','Saved here. New answers are waiting to upload.'):reportingPending?txt('Töö on kontol. Õpiülevaade uueneb järgmisel ühendusel.','Work saved to your account. Reporting will refresh on the next connection.'):txt('Automaatne sünkroonimine on sees · töö on kontol','Automatic sync is on · work saved to your account'));
    if(pending)schedule(1500);
   }catch(e){say(e.auth?txt('Töö on seadmes alles. Ühendus vajab uut seadistuslinki.','Your work is safe here. This connection needs a new setup link.'):txt('Töö on seadmes alles. Sünkroonime internetiühenduse taastumisel.','Your work is safe here. Sync will retry when online.'));if(e.conflict)schedule(2000);}
   finally{busy=false;retry.disabled=false;if(changed)schedule(1500);}
@@ -45,8 +45,12 @@
  retry.onclick=()=>sync();
  async function ready(){
   if(initialized)return;initialized=true;
-  if(invitation){
-   retry.hidden=true;say(txt('Ühekordne seadistus: too varasem õpiajalugu sellesse telefoni ja salvesta uus töö privaatselt kontole.','One-time setup: bring your previous history to this phone and save new work privately to your account.'));
+  if(connection?.confirmed){
+   // Reopening a consumed invitation must not replace an established device connection.
+   if(invitation)sessionStorage.removeItem('study-pocket:invitation');
+   await sync();
+  }else if(invitation){
+   retry.hidden=true;say(txt('Ühenda see brauser üks kord. Edaspidi salvestub uus töö automaatselt kontole, kui äpp on internetiga avatud.','Connect this browser once. Afterwards, new work syncs automatically whenever the app is open online.'));
    const hasWork=window.BackupModel.summary(window.BackupStore.snapshot()).some(r=>r.completed||r.unfinished);
    const label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';label.append(check,document.createTextNode(txt(' Selle brauseri senine töö on minu oma; ühenda see varasema ajalooga.',' The existing work in this browser is mine; merge it with my previous history.')));if(hasWork)bar.append(label);
    const pair=document.createElement('button');pair.textContent=txt('Ühendan oma õpiajaloo','Connect my study history');pair.disabled=hasWork;check.onchange=()=>pair.disabled=!check.checked;bar.append(pair);
@@ -54,9 +58,8 @@
     const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(invitation)))].map(x=>x.toString(16).padStart(2,'0')).join('');
     if(!connection?.key||connection.invitationHash!==digest){const bytes=crypto.getRandomValues(new Uint8Array(32));connection={key:btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),confirmed:false,invitationHash:digest,base:{},revisions:{}};save();}
     await request('/pair','POST',{invitation,deviceKey:connection.key});connection.confirmed=true;save();sessionStorage.removeItem('study-pocket:invitation');pair.remove();label.remove();retry.hidden=false;await sync();
-   }catch{say(txt('Ühendamine ei õnnestunud. Töö jääb alles. Proovi internetiga uuesti; vana või kasutatud link vajab asendamist.','Setup did not finish. Your work is retained. Retry online; an expired or used link needs replacing.'));pair.disabled=hasWork&&!check.checked;}};
-  }else if(connection?.confirmed){await sync();}
-  else{retry.hidden=true;say(txt('Praegu salvestub töö siia. Privaatseks sünkroonimiseks ava oma ühekordne seadistuslink.','Work currently saves here. Open your one-time setup link to enable private sync.'));}
+   }catch(e){say(e.pairUsed?txt('See seadistuslink on juba teises brauseris kasutatud. Automaatne sünkroonimine seal jätkub. Selle brauseri ühendamiseks küsi uus privaatne seadistuslink; siinne töö jääb alles.','This setup link was already used in another browser. Automatic sync continues there. Ask for a new private setup link for this browser; your local work is retained.'):txt('Ühendamine ei õnnestunud. Töö jääb alles. Proovi internetiga uuesti; vana või kasutatud link vajab asendamist.','Setup did not finish. Your work is retained. Retry online; an expired or used link needs replacing.'));pair.disabled=hasWork&&!check.checked;}};
+  }else{retry.hidden=true;say(txt('See brauser pole veel ühendatud: töö salvestub ainult siia. Ava selle brauseri privaatne seadistuslink. Ühendatud brauseris on sünkroonimine edaspidi automaatne.','This browser is not connected yet: work saves only here. Open a private setup link for this browser. Once connected, syncing is automatic.'));}
  }
  window.addEventListener('backup-ready',ready,{once:true});if(window.BackupStore)ready();
  window.addEventListener('backup-changed',()=>{changed=true;schedule();});window.addEventListener('online',()=>schedule(0));document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0);});setInterval(()=>{if(!document.hidden)schedule(0);},45000);
