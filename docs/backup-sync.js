@@ -8,17 +8,18 @@
  const bar=document.createElement('section');bar.className='backup-status';bar.setAttribute('aria-label',txt('Privaatne sünkroonimine','Private sync'));
  const status=document.createElement('span');status.setAttribute('role','status');const retry=document.createElement('button');retry.textContent=txt('Sünkrooni nüüd','Sync now');bar.append(status,retry);
  (document.querySelector('header')||document.body).insertAdjacentElement('afterend',bar);
- let busy=false,timer=null,changed=false,initialized=false;
+ let busy=false,timer=null,changed=false,initialized=false,lastError=null,lastAttempt=null,pendingWork=null;
+ const reread=()=>{try{const saved=JSON.parse(read(localStorage,KEY)||'null');if(saved?.confirmed&&saved.key)connection=saved;}catch{}};
  const say=s=>{status.textContent=s;};
  const save=()=>write(localStorage,KEY,JSON.stringify(connection));
  async function request(path,method='GET',body){
   const r=await fetch(API+path,{method,credentials:'omit',cache:'no-store',headers:{...(connection?.key?{Authorization:'Bearer '+connection.key}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(25000)});
   if(r.status===401){const e=Error('Reconnect');e.auth=true;throw e;}if(r.status===409){const e=Error('Conflict');e.conflict=true;e.pairUsed=path==='/pair';throw e;}
-  if(!r.ok)throw Error('Sync unavailable');const v=await r.json();if(v.error)throw Error('Sync unavailable');return v;
+  if(!r.ok){const e=Error('Sync unavailable');e.code='server_'+r.status;throw e;}const v=await r.json();if(v.error)throw Error('Sync unavailable');return v;
  }
  async function sync(){
-  if(busy||!initialized||!connection?.key||!connection.confirmed)return;
-  busy=true;retry.disabled=true;changed=false;
+  if(busy||!initialized)return;reread();if(!connection?.key||!connection.confirmed){lastError='not_connected';return;}retry.hidden=false;
+  busy=true;retry.disabled=true;changed=false;lastAttempt=Date.now();lastError=null;
   try{
    const S=window.BackupStore;if(S.corrupt())throw Error('Storage needs recovery');await S.flush();
    const remote=await request('/trial-sync');if(remote.format!=='pocket-sync-v1'||!remote.modules)throw Error('Invalid response');
@@ -35,10 +36,16 @@
     await S.receive({[key]:v.data},{[key]:sent});connection.base[key]=v.data;connection.revisions[key]=v.revision;reportingPending ||= v.reportingPending;save();
    }
    const latest=S.snapshot().modules,pending=window.BackupModel.keys.some(k=>latest[k]&&JSON.stringify(latest[k])!==JSON.stringify(connection.base[k])&&(latest[k].sessions?.length||Object.keys(latest[k].repairs||{}).length));
-   connection.lastSync=Date.now();save();
+   pendingWork=Boolean(pending);if(!pending)connection.lastSync=Date.now();save();
    say(pending?txt('Töö on seadmes. Uued vastused ootavad saatmist.','Saved here. New answers are waiting to upload.'):reportingPending?txt('Töö on kontol. Õpiülevaade uueneb järgmisel ühendusel.','Work saved to your account. Reporting will refresh on the next connection.'):txt('Automaatne sünkroonimine on sees · töö on kontol','Automatic sync is on · work saved to your account'));
    if(pending)schedule(1500);
-  }catch(e){say(e.auth?txt('Töö on seadmes alles. Ühendus vajab uut seadistuslinki.','Your work is safe here. This connection needs a new setup link.'):txt('Töö on seadmes alles. Sünkroonime internetiühenduse taastumisel.','Your work is safe here. Sync will retry when online.'));if(e.conflict)schedule(2000);}
+  }catch(e){
+   lastError=e.auth?'authorization':e.conflict?'conflict':e.code||(/Storage|save|recovery/i.test(e.message)?'device_storage':'connection');
+   say(e.auth?txt('Töö on seadmes alles. Ühendus vajab uut seadistuslinki. Ava „Uuendus ja ühendus“.','Your work is retained. This connection needs a new setup link. Open Update & connection.'):
+    lastError==='device_storage'?txt('Seadmesse salvestamisel tekkis tõrge. Ava „Minu töö ja varukoopia“. Kontole jõudmine pole kinnitatud.','Device saving failed. Open Progress & backup. Account upload is not confirmed.'):
+    txt('Kontole saatmine ei õnnestunud; põhjus võib olla ühenduses või teenuses. Töö jääb seadmesse. Vajuta „Sünkrooni nüüd“ või ava „Uuendus ja ühendus“.','Account sync failed: connection or service problem. Work remains here. Tap Sync now or open Update & connection.'));
+   if(e.conflict)schedule(2000);
+  }
   finally{busy=false;retry.disabled=false;if(changed)schedule(1500);}
  }
  function schedule(ms=1200){clearTimeout(timer);timer=setTimeout(sync,ms);}
@@ -63,5 +70,6 @@
  }
  window.addEventListener('backup-ready',ready,{once:true});if(window.BackupStore)ready();
  window.addEventListener('backup-changed',()=>{changed=true;schedule();});window.addEventListener('online',()=>schedule(0));document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule(0);});setInterval(()=>{if(!document.hidden)schedule(0);},45000);
- window.PocketSync={sync};
+ window.addEventListener('storage',e=>{if(e.key===KEY)schedule(0);});
+ window.PocketSync={sync,diagnostics:()=>({connected:Boolean(connection?.confirmed&&connection?.key),busy,lastAttempt,lastAcknowledged:connection?.lastSync||null,pending:pendingWork,error:lastError})};
 })();

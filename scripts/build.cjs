@@ -8,3 +8,5 @@ const release=crypto.createHash('sha256').update(JSON.stringify(manifest)+fs.rea
 fs.writeFileSync(path.join(out,'backup-sw.js'),fs.readFileSync(path.join(src,'backup-sw.js'),'utf8').replace('__RELEASE__',JSON.stringify(release)).replace('__PACK__',JSON.stringify(manifest)));
 fs.writeFileSync(path.join(root,'release.json'),JSON.stringify({release,coreBytes:manifest.filter(a=>a.group==='core').reduce((n,a)=>n+a.size,0),audioBytes:manifest.filter(a=>a.group==='audio').reduce((n,a)=>n+a.size,0),files:manifest.length},null,2)+'\n');
 console.log(fs.readFileSync(path.join(root,'release.json'),'utf8'));
+
+fs.copyFileSync(path.join(root,'release.json'),path.join(out,'release.json'));
