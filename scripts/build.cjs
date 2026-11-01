@@ -1,5 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const root=path.join(__dirname,'..'),src=path.join(root,'src'),out=path.join(root,'docs');fs.mkdirSync(out,{recursive:true});
+for(const [from,to] of [['pair-entry.js','connect-entry.js'],['backup-sync.js','connect-sync.js']])fs.copyFileSync(path.join(src,from),path.join(src,to));
 const list=(d,p='')=>fs.readdirSync(d,{withFileTypes:true}).flatMap(x=>x.isDirectory()?list(path.join(d,x.name),p+x.name+'/'):[p+x.name]);
 for(const file of list(src).filter(p=>p!=='backup-sw.js')){fs.mkdirSync(path.dirname(path.join(out,file)),{recursive:true});fs.copyFileSync(path.join(src,file),path.join(out,file));}
 fs.writeFileSync(path.join(out,'.nojekyll'),'');
