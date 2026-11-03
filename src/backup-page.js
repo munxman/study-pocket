@@ -1,6 +1,12 @@
 'use strict';
 (()=>{
  const M=window.BackupModel,S=window.BackupStore,labels={'hendrik-bio-basics-v1':'Bioloogia alused','hendrik-imat-bio-v1':'Biology · IMAT','hendrik-ielts-v1':'English · IELTS','hendrik-imat-trial-v1':'Päris IMAT · proov'};let incoming=null;
+ // Clip expiry can be applied the next time this browser opens the home or progress page.
+ if (window.IELTSAudioStorage) {
+   for (const db of ['study-biology-reasoning-audio-v1', 'study-english-audio-v1']) {
+     window.IELTSAudioStorage.createRecordingStore(db).purgeExpired().catch(() => {});
+   }
+ }
  const date=t=>new Intl.DateTimeFormat('et-EE',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Tallinn'}).format(t);
  function verify(snapshot){for(const[k,v]of Object.entries(snapshot.modules)){if(k==='hendrik-bio-basics-v1')window.BasicsEngine.restore(v,window.BASICS_CONTENT);else if(k==='hendrik-imat-bio-v1')window.ImatEngine.restore(v,window.IMAT_CONTENT);else if(k==='hendrik-ielts-v1'){if(!v.sessions.every(a=>typeof a.kind==='string'))throw Error('English history is incomplete');window.IELTSEngine.restore(v);}}return snapshot;}
  window.BackupValidation=verify;

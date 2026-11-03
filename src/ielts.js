@@ -2,7 +2,7 @@
 (async()=>{
 const E=window.IELTSEngine,C=window.IELTS_CONTENT,L=window.IELTS_LISTENING,storage=window.StudySync.storage,main=document.getElementById('english-main');
 let state;try{state=E.restore(JSON.parse(storage.getItem(E.KEY)));}catch{state=E.fresh();}
-let view='home',selectedResult=null,player=null,recorder=null,recordStream=null,recordBusy=false,audioURL=null,toastTimer=null,pendingTimedSubmission=null;
+let view='home',selectedResult=null,player=null,recorder=null,recordStream=null,recordBusy=false,audioURL=null,toastTimer=null,pendingTimedSubmission=null,recordRequest=null,expiryTimer=null,audioViewGeneration=0,pendingRecovery=null;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const date=t=>new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Tallinn'}).format(t);
 const button=(label,action,extra='',cls='')=>`<button class="en-button ${cls}" data-action="${action}" ${extra}>${label}</button>`;
@@ -15,12 +15,13 @@ const questions=a=>tasks(a).flatMap(t=>t.questions||[t]).filter(q=>q.answer!==un
 const completed=()=>state.sessions.filter(a=>a.completedAt);
 const current=()=>E.active(state);
 function disposePlayer(){if(player){player.pause();player=null;}}
-function stopRecording(){if(recorder&&recorder.state!=='inactive')recorder.stop();recordStream?.getTracks().forEach(t=>t.stop());recordStream=null;}
+function stopRecording(){if(recordRequest){recordRequest=null;recordBusy=false;document.querySelector('[data-action="record"]')?.removeAttribute('disabled');}if(recorder&&recorder.state!=='inactive')recorder.stop();recordStream?.getTracks().forEach(t=>t.stop());recordStream=null;}
 function stopMedia(){disposePlayer();stopRecording();}
 function route(){const next=location.hash.slice(1)||'home';if(view==='session'&&next!=='session'&&current()?.status==='active'&&!current()?.completedAt){E.pause(state);save();}stopMedia();view=next;if(view==='session'&&!current())view='home';render();main.scrollIntoView({block:'start'});}
 function go(page){if(location.hash==='#'+page){view=page;render();}else location.hash=page;}
 function heading(k,title,desc=''){return `<div class="en-top"><div><span class="small-label">${esc(k)}</span><h1>${esc(title)}</h1>${desc?`<p class="en-note">${esc(desc)}</p>`:''}</div></div>`;}
 function render(){
+ clearAudioPreview();
  for(const a of document.querySelectorAll('.english-tabs a'))a.setAttribute('aria-current',a.hash==='#'+view?'page':'false');
  if(view==='session')renderSession();else if(view==='result')renderResult();else if(view==='practice')renderPractice();else if(view==='progress')renderProgress();else if(view==='sources')renderSources();else renderHome();
  if(['home','progress','result'].includes(view)){
@@ -43,7 +44,7 @@ function renderPractice(){
  <section class="en-card"><span class="small-label">READING</span><h2>Find the evidence.</h2><p>True / False / Not Given, writer’s views, headings, completion and multiple choice. Answers stay hidden until you submit.</p><div class="en-row">${button('8-minute passage','start','data-kind="reading"','main')}${button('60-minute section · 40 questions','start','data-kind="reading" data-mode="full"')}</div><details><summary>Choose a passage</summary>${C.reading.map(t=>button(esc(t.title),'start',`data-kind="reading" data-id="${t.id}"`,'small')).join(' ')}</details></section>
  <section class="en-card"><span class="small-label">LISTENING</span><h2>Listen for the change.</h2><p>Hear an original recording once, answer in order, then review the transcript. These recordings use synthetic voices, so also practise with the official human recordings.</p><div class="en-row">${button('8-minute listening','start','data-kind="listening"','main')}${button('30-minute section · 40 questions','start','data-kind="listening" data-mode="full"')}</div><details><summary>Choose a recording</summary>${L.short.map(t=>button(esc(t.title),'start',`data-kind="listening" data-id="${t.id}"`,'small')).join(' ')}</details></section>
  <section class="en-card"><span class="small-label">WRITING</span><h2>Your ideas. Your words.</h2><p>Use eight minutes to plan and write part of an answer. Use full timing to practise a complete response. No automatic band score here.</p><div class="en-row">${button('Task 1 · 8 minutes','start','data-kind="writing" data-taskkind="task1"','main')}${button('Task 2 · 8 minutes','start','data-kind="writing" data-taskkind="task2"')}</div><div class="en-row en-section">${button('Task 1 · 20 minutes','start','data-kind="writing" data-taskkind="task1" data-mode="full"')}${button('Task 2 · 40 minutes','start','data-kind="writing" data-taskkind="task2" data-mode="full"')}${button('Both tasks · 60 minutes','start','data-kind="writing" data-taskkind="both" data-mode="full"')}</div><details><summary>Choose a writing task</summary>${C.writing.map(t=>button(esc(t.title),'start',`data-kind="writing" data-taskkind="${t.kind}" data-id="${t.id}"`,'small')).join(' ')}</details></section>
- <section class="en-card"><span class="small-label">SPEAKING</span><h2>Explain, then extend.</h2><p>Use the microphone to answer out loud, or type if you prefer. Part 2 has one minute to prepare and up to two minutes to speak. A recording is needed for pronunciation feedback.</p><div class="en-row">${[1,2,3].map(p=>button(`Part ${p} · short practice`,'start',`data-kind="speaking" data-part="${p}"`,p===2?'main':'')).join('')}${button('Parts 1–3 · timed rehearsal','start','data-kind="speaking" data-mode="full"')}</div><p class="en-note">The full rehearsal uses fixed prompts. The real test is an interactive interview with an examiner.</p></section>
+ <section class="en-card"><span class="small-label">SPEAKING</span><h2>Explain, then extend.</h2><p>Dictate an editable transcript, record audio for pronunciation feedback, or type your response. Part 2 has one minute to prepare and up to two minutes to speak. A recording is needed for pronunciation feedback.</p><div class="en-row">${[1,2,3].map(p=>button(`Part ${p} · short practice`,'start',`data-kind="speaking" data-part="${p}"`,p===2?'main':'')).join('')}${button('Parts 1–3 · timed rehearsal','start','data-kind="speaking" data-mode="full"')}</div><p class="en-note">The full rehearsal uses fixed prompts. The real test is an interactive interview with an examiner.</p></section>
  <section class="en-card en-warm"><span class="small-label">2 MINUTES</span><h2>A useful word. A precise sentence.</h2><p>Academic vocabulary, grammar and paraphrase. Due questions return first; mistakes and uncertainty return sooner.</p>${button('Start two minutes','start','data-kind="drill"','main')}</section>
  <section class="en-card"><h2>Try the real format too.</h2><p>Our exercises follow IELTS formats but are original and uncalibrated. Official samples help you experience authentic wording and human voices.</p><a class="en-button" href="https://ielts.org/take-a-test/preparation-resources/sample-test-questions/academic-test" target="_blank" rel="noopener">Official IELTS sample tasks ↗</a></section></div>`;
 }
@@ -92,8 +93,15 @@ function visualHTML(v){
 }
 function renderWriting(a,ts){return `<div class="en-grid">${ts.map(t=>`<section class="en-card"><span class="en-pill">${t.kind==='task1'?'Task 1 · at least 150 words · about 20 minutes':'Task 2 · at least 250 words · about 40 minutes'}</span><h2>${esc(t.title)}</h2><p>${esc(t.prompt)}</p>${visualHTML(t.visual)}${a.mode!=='full'&&t.shortPractice?`<p class="en-alert"><strong>This short block:</strong> ${esc(t.shortPractice)}</p>`:''}${a.mode!=='full'?'<p class="en-alert">This short block is for planning and part of your answer. It will not establish a Writing band.</p>':''}<label for="text-${esc(t.id)}"><strong>Your own response</strong></label><textarea class="en-text" id="text-${esc(t.id)}" data-text="${esc(t.id)}" spellcheck="${a.timed?'false':'true'}" autocomplete="off" autocorrect="off" autocapitalize="off" maxlength="15000" placeholder="Write your own response here…">${esc(a.texts[t.id]||'')}</textarea><p class="en-note en-draft-count" data-wordcount="${esc(t.id)}">${E.words(a.texts[t.id])} words · draft saved as you type</p></section>`).join('')}</div><section class="en-card en-section"><p>The app does not write your answer or assign an automatic band. Submit your own work, then copy a review prompt for ChatGPT or a teacher. Use invented names rather than personal identifiers.</p><div class="en-actions">${button('Save my response & review','submit','','main')}</div></section>`;}
 function speakingPrompt(t,phase){if(phase==='part1')return `<h2>Part 1 · familiar topics</h2><ul>${t.part1.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`;if(phase==='part3')return `<h2>Part 3 · develop your ideas</h2><ul>${t.part3.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`;return `<h2>Part 2 · ${phase==='prep'?'prepare for one minute':'speak for up to two minutes'}</h2><p>${esc(t.part2.prompt)}</p><ul>${t.part2.bullets.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`;}
-function renderSpeaking(a,t){return `<div class="en-grid"><section class="en-card">${speakingPrompt(t,a.phase)}<p class="en-note" id="en-phase-time"></p>${a.phase==='prep'?button('Start speaking now','next-phase','','main'):a.mode==='full'&&a.phase!=='part3'?button('Next part','next-phase'):''}<p class="en-note">Speak naturally. Explain a reason or example; memorising a prepared script will not show what you can do spontaneously.</p></section><section class="en-card"><h2>Keep your own response</h2><p>Tap the microphone, speak, then choose Stop &amp; save recording. You can submit a recording with the text box empty. Audio stays on this device. To get feedback on what you said, download the recording and share it yourself.</p><div class="en-row">${button('<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false" style="vertical-align:middle"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4m-3 0h6"/></svg> Start microphone recording','record','','main')}${button('Stop & save recording','stop-record','disabled')}</div><p id="en-record-status" class="en-note" role="status">${a.recorded?'A recording was saved on the device used for this attempt.':'The browser asks for microphone permission only when you start recording.'}</p><div id="en-record-preview"></div><label for="speaking-text">Or type your answer / notes</label><textarea id="speaking-text" class="en-text short" data-text="${t.id}" maxlength="15000" placeholder="Typed answers practise language and ideas; they cannot assess pronunciation.">${esc(a.texts[t.id]||'')}</textarea><p class="en-note en-draft-count" data-wordcount="${t.id}">${E.words(a.texts[t.id])} words</p><div class="en-actions">${button('Save my response & review','submit','','main')}</div></section></div>`;}
-function submit(timedOut=false){if(recordBusy){if(timedOut)pendingTimedSubmission=current()?.id;stopRecording();message('Recording is saving. Keep this page open.');return;}stopMedia();const a=current();if(!a)return;
+function renderSpeaking(a,t){return `<div class="en-grid"><section class="en-card">${speakingPrompt(t,a.phase)}<p class="en-note" id="en-phase-time"></p>${a.phase==='prep'?button('Start speaking now','next-phase','','main'):a.mode==='full'&&a.phase!=='part3'?button('Next part','next-phase'):''}<p class="en-note">Speak naturally. Explain a reason or example; memorising a prepared script will not show what you can do spontaneously.</p></section><section class="en-card"><h2>Your speaking response</h2>
+ <label for="speaking-text">Your words · dictate or type</label>
+ <textarea id="speaking-text" class="en-text short" data-text="${t.id}" maxlength="15000" placeholder="Your transcript goes here. You can correct it before submitting.">${esc(a.texts[t.id]||'')}</textarea>
+ <study-dictation data-target="speaking-text" data-session="${esc(a.id)}-${esc(t.id)}" lang="en-GB"></study-dictation>
+ <p class="en-note">This transcript is saved with your speaking practice and syncs when your browser is paired. You can submit it on its own.</p>
+ <p class="en-note en-draft-count" data-wordcount="${t.id}">${E.words(a.texts[t.id])} words</p>
+ <details data-recording-panel ${recordBusy?'open':''}><summary>Optional audio for pronunciation feedback</summary><p>Choose this only to keep a voice sample. This browser can hold up to 3 IELTS clips (10 MiB total). New clips expire after 7 days and are cleared when IELTS is open. You can download, share or delete your clip earlier. Dictating the transcript above stores only the text in Õpitasku.</p><div class="en-row">${button('<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false" style="vertical-align:middle"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4m-3 0h6"/></svg> Record &amp; keep for 7 days','record','','main')}${button('Stop & save recording','stop-record','disabled')}</div><p id="en-record-status" class="en-note" role="status">${a.recorded?'You recorded a response for this attempt. Local availability is shown below.':'The browser asks for microphone permission only when you start recording.'}</p><div id="en-record-preview"></div></details>
+ <div class="en-actions">${button('Save my response & review','submit','','main')}</div></section></div>`;}
+function submit(timedOut=false){if(!timedOut&&main.querySelector('study-dictation')?.active){message('Stop dictation, check your words, then save your response.');return;}if(recordRequest){stopRecording();if(!timedOut){message('Microphone request cancelled. You can save the transcript.');return;}}if(recordBusy){if(timedOut)pendingTimedSubmission=current()?.id;stopRecording();message('Recording is saving. Keep this page open.');return;}stopMedia();const a=current();if(!a)return;
  if(!timedOut&&!questions(a).length&&!Object.values(a.texts).some(t=>t.trim())&&!a.recorded){message('Write a response or save a recording first. You can also pause and return.');return;}
  if(!timedOut&&questions(a).length&&!Object.values(a.answers).some(t=>t.trim())){message('Try at least one answer before submitting. Blank answers elsewhere are fine.');return;}
  E.submit(state,questions(a),Date.now(),timedOut);save();selectedResult=a.id;go('result');}
@@ -105,59 +113,139 @@ function renderResult(){const a=state.sessions.find(x=>x.id===(selectedResult||s
  ${['writing','speaking'].includes(a.kind)&&a.completedAt?feedbackHTML(a,ts):''}`;
  if(a.kind==='speaking'&&a.recorded)showRecording(a.id,'en-saved-recording');
 }
-function feedbackHTML(a,ts){const prompt=E.feedbackPrompt(a,ts),evals=state.evaluations.filter(e=>e.sessionId===a.id);return `<section class="en-card en-section"><h2>Review your own work</h2>${ts.map(t=>`<h3>${esc(t.title)}</h3>${t.visual?visualHTML(t.visual):''}<p style="white-space:pre-wrap">${esc(a.texts[t.id]||'No typed response. Attach your recording separately.')}</p>`).join('')}<div id="en-saved-recording"></div><ol class="en-steps"><li>Copy the prompt below into your own ChatGPT conversation. It includes the task and your typed response.</li><li>For speaking, download and attach your recording separately. Ask for feedback only on what the reviewer can actually hear or read.</li><li>Revise the work yourself. You can save the useful feedback below or share the evaluation with your teacher.</li></ol><div class="en-row">${button('Copy review prompt','copy-prompt',`data-id="${a.id}"`,'main')}${button('Download prompt & response','download-prompt',`data-id="${a.id}"`)}</div><details><summary>View / select the complete prompt</summary><textarea class="en-text" readonly id="en-review-prompt" aria-label="Review prompt">${esc(prompt)}</textarea></details>${a.draftVersions?.length?`<details><summary>Earlier draft versions from another saved copy</summary>${a.draftVersions.map(v=>`<p>${esc(date(v.at))}</p><textarea class="en-text short" readonly>${esc(Object.values(v.texts).join('\n\n'))}</textarea>`).join('')}</details>`:''}<p class="en-note">Prompts cannot guarantee a reviewer’s accuracy. Short writing or typed speaking should receive useful feedback, not a precise IELTS band.</p></section>
+function feedbackHTML(a,ts){const prompt=E.feedbackPrompt(a,ts),evals=state.evaluations.filter(e=>e.sessionId===a.id);return `<section class="en-card en-section"><h2>Review your own work</h2>${ts.map(t=>`<h3>${esc(t.title)}</h3>${t.visual?visualHTML(t.visual):''}<p style="white-space:pre-wrap">${esc(a.texts[t.id]||'No transcript saved.')}</p>`).join('')}<div id="en-saved-recording"></div><ol class="en-steps"><li>Copy the prompt below into your own ChatGPT conversation. It includes the task and your typed response.</li><li>For speaking, download and attach your recording separately. Ask for feedback only on what the reviewer can actually hear or read.</li><li>Revise the work yourself. You can save the useful feedback below or share the evaluation with your teacher.</li></ol><div class="en-row">${button('Copy review prompt','copy-prompt',`data-id="${a.id}"`,'main')}${button('Download prompt & response','download-prompt',`data-id="${a.id}"`)}</div><details><summary>View / select the complete prompt</summary><textarea class="en-text" readonly id="en-review-prompt" aria-label="Review prompt">${esc(prompt)}</textarea></details>${a.draftVersions?.length?`<details><summary>Earlier draft versions from another saved copy</summary>${a.draftVersions.map(v=>`<p>${esc(date(v.at))}</p><textarea class="en-text short" readonly>${esc(Object.values(v.texts).join('\n\n'))}</textarea>`).join('')}</details>`:''}<p class="en-note">Prompts cannot guarantee a reviewer’s accuracy. Short writing or typed speaking should receive useful feedback, not a precise IELTS band.</p></section>
  <section class="en-card en-feedback en-section"><h2>Bring feedback back here</h2><p>Optional. Save the reviewer’s comments and any justified estimate. It stays labelled as external, unverified feedback.</p><form id="en-feedback-form" data-session="${a.id}"><label>Reviewer <select name="source"><option>ChatGPT</option><option>Teacher</option><option>Official result</option></select></label><label>Band estimate (optional)<input class="en-input" type="number" name="band" min="0" max="9" step="0.5" placeholder="Leave blank if not supported" ${a.kind==='speaking'&&!a.recorded?'disabled':''}></label><label>Feedback<textarea class="en-text short" name="feedback" maxlength="6000" required placeholder="Paste the evaluation, its limitations and the next improvement to work on."></textarea></label><button class="en-button main" type="submit">Save external feedback</button><p role="status" id="en-feedback-status"></p></form>${evals.length?`<h3 class="en-section">Saved feedback</h3>${evals.map(e=>`<article class="en-correct"><strong>${esc(e.source)} · ${esc(date(e.at))}${e.band!==null?' · reported band '+e.band:''}</strong><p style="white-space:pre-wrap">${esc(e.feedback)}</p></article>`).join('')}` :''}</section>`;}
 function renderProgress(){const done=completed(),attempts=done.flatMap(a=>a.results||[]),weak=new Map();for(const r of attempts){const w=weak.get(r.skill)||{n:0,correct:0};w.n++;w.correct+=r.correct?1:0;weak.set(r.skill,w);}const days=new Set(done.map(a=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Tallinn'}).format(a.completedAt)));
  main.innerHTML=heading('YOUR ENGLISH','Real work, visible progress.','Biology and English results stay separate. These are practice observations, not exam predictions.')+`<div class="en-stat-grid"><div class="en-stat">Blocks completed<strong>${done.length}</strong></div><div class="en-stat">Learning days<strong>${days.size}</strong><small>Saved completed work</small></div><div class="en-stat">Marked answers<strong>${attempts.filter(r=>r.correct).length} / ${attempts.length}</strong><small>Mixed practice, not a band</small></div><div class="en-stat">External reviews<strong>${state.evaluations.length}</strong></div></div><div class="en-grid en-section">${['reading','listening','writing','speaking'].map(kind=>{const ss=done.filter(a=>a.kind===kind),rs=ss.flatMap(a=>a.results||[]),es=state.evaluations.filter(e=>e.kind===kind);return `<section class="en-card"><h2>${kind[0].toUpperCase()+kind.slice(1)}</h2><p>${ss.length} completed ${ss.length===1?'block':'blocks'}${rs.length?` · ${rs.filter(r=>r.correct).length}/${rs.length} marked answers correct`:''}</p><p class="en-note">${rs.length?`${rs.filter(r=>r.repeated).length} answers were to previously seen questions.`:kind==='writing'||kind==='speaking'?'Feedback and estimates require an external review.':'Try a short starting sample to identify useful practice.'}</p>${es.length?`<ul class="en-history">${es.slice(-5).reverse().map(e=>`<li>${esc(date(e.at))} · ${esc(e.source)} · ${e.band===null?'Feedback only':'reported band '+e.band}<small class="en-note"> · entered manually, unverified</small></li>`).join('')}</ul>`:'<p>Band: not established.</p>'}${button('Practise this skill','start',`data-kind="${kind}"`,'small')}</section>`;}).join('')}</div>
  <section class="en-card en-section"><h2>What deserves another look?</h2>${weak.size?`<ul>${[...weak].filter(([_,w])=>w.correct<w.n).sort((a,b)=>(b[1].n-b[1].correct)-(a[1].n-a[1].correct)).slice(0,6).map(([skill,w])=>`<li>${esc(skill)} · ${w.correct}/${w.n} correct. Try a fresh example and locate the evidence.</li>`).join('')||'<li>No missed question types yet. Try an unfamiliar passage to broaden the evidence.</li>'}</ul>`:'<p>Your submitted answers will show which question types need practice.</p>'}<p class="en-note">Small samples, repeated questions and mixed difficulty limit comparisons. The next short block favours due reviews and unseen sets involving missed skills.</p></section>
- <section class="en-card en-section"><h2>Your saved work</h2>${state.sessions.length?`<ul class="en-history">${[...state.sessions].sort((a,b)=>b.startedAt-a.startedAt).slice(0,50).map(a=>`<li><strong>${esc(a.title)}</strong><p>${esc(date(a.completedAt||a.startedAt))} · ${a.completedAt?'Completed':a.status==='empty'?'Opened, no submitted work':'Saved, unfinished'}${a.total?` · ${a.score}/${a.total}`:''}</p>${a.completedAt?button('Review','result',`data-id="${a.id}"`,'small'):a.status!=='empty'?button('Continue','resume',`data-id="${a.id}"`,'small'):''}</li>`).join('')}</ul>`:'<p>Your first submitted English task will appear here.</p>'}</section>`;
+ <section class="en-card en-section"><h2>Your saved work</h2>${state.sessions.length?`<ul class="en-history">${[...state.sessions].sort((a,b)=>b.startedAt-a.startedAt).slice(0,50).map(a=>`<li><strong>${esc(a.title)}</strong><p>${esc(date(a.completedAt||a.startedAt))} · ${a.completedAt?'Completed':a.status==='empty'?'Opened, no submitted work':'Saved, unfinished'}${a.total?` · ${a.score}/${a.total}`:''}</p>${a.completedAt?button('Review','result',`data-id="${a.id}"`,'small'):a.status!=='empty'?button('Continue','resume',`data-id="${a.id}"`,'small'):''}</li>`).join('')}</ul>`:'<p>Your first submitted English task will appear here.</p>'}</section><section class="en-card en-section"><h2>Speaking recordings on this device</h2><p>Listen, download for feedback, or delete. Deleting a clip preserves the study result and transcript.</p><div id="en-local-audio-list"></div><div id="en-managed-audio"></div></section>`;
+ showLocalAudioList();
 }
-function renderSources(){main.innerHTML=heading('IELTS ACADEMIC','Understand the real test.','Official format checked 23 October 2026. Our practice content is original and unofficial.')+`<div class="en-grid"><section class="en-card"><h2>Reading</h2><p>60 minutes, three sections and 40 questions. Academic texts total 2,150–2,750 words. Each correct answer earns one mark. Read the precise word limit for completion questions.</p><a href="https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-reading" target="_blank" rel="noopener">Official Reading format ↗</a></section><section class="en-card"><h2>Listening</h2><p>Four parts, 40 questions, approximately 30 minutes. Recordings are heard once. The first two parts use everyday situations; the last two use education or training contexts. Paper answer-transfer time differs from computer delivery.</p><a href="https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-listening" target="_blank" rel="noopener">Official Listening format ↗</a></section><section class="en-card"><h2>Writing</h2><p>60 minutes for two tasks. Task 1: at least 150 words describing visual information, about 20 minutes. Task 2: at least 250 words responding to an argument or problem, about 40 minutes. Task 2 carries twice the weight.</p><p>Criteria: Task Achievement / Task Response, Coherence and Cohesion, Lexical Resource, Grammatical Range and Accuracy.</p><a href="https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-writing" target="_blank" rel="noopener">Official Writing format ↗</a></section><section class="en-card"><h2>Speaking</h2><p>11–14 minutes with an examiner: familiar topics; a longer turn with one minute’s preparation and up to two minutes speaking; then a more abstract discussion.</p><p>Criteria: Fluency and Coherence, Lexical Resource, Grammatical Range and Accuracy, Pronunciation. Typed answers cannot assess pronunciation.</p><a href="https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-speaking" target="_blank" rel="noopener">Official Speaking format ↗</a></section></div><section class="en-card en-section"><h2>What this app is based on</h2><p>IELTS.org supplies the format and assessment guidance. The reading passages, question sets, writing tasks, speaking prompts and synthetic listening recordings here are newly authored practice. They are not past IELTS papers, not Economist articles and not an official IELTS product. We do not convert scores on these uncalibrated sets into IELTS bands.</p><p>Your two- and eight-minute blocks develop skills. Full sections develop pacing. A few samples identify practice priorities; a credible band assessment needs sufficient complete work and appropriately qualified review.</p><div class="en-row"><a class="en-button" href="https://ielts.org/take-a-test/preparation-resources/sample-test-questions/academic-test" target="_blank" rel="noopener">Official samples & human recordings ↗</a><a class="en-button" href="https://ielts.org/take-a-test/your-results/ielts-scoring-in-detail" target="_blank" rel="noopener">Official scoring guidance ↗</a></div></section><section class="en-card en-section"><h2>Optional reading from The Economist</h2><p>Choose an article you can access through the subscription. Read a manageable section, identify its claim and evidence, then explain the idea in your own words. Collect a few useful phrases in context. This supplements exam practice; the app does not copy or unlock subscription articles.</p></section><section class="en-card en-section"><h2>Your work and your privacy</h2><p><a href="./english-review-prompts.md" download>Download standalone Writing and Speaking review prompts</a></p><p>Drafts, answers, results and feedback you choose to enter sync to your study account. Your microphone is used only when you press Record. Recordings stay in this browser on this device; download one to attach in your own ChatGPT conversation. They do not automatically upload or sync. We do not ask for ID numbers or health information.</p><p>your teacher’s shared overview contains learning summaries, not the text of your essays, recordings or pasted reviews. No AI service or API key is used by this English module.</p></section>`;}
+function renderSources(){main.innerHTML=heading('IELTS ACADEMIC','Understand the real test.','Official format checked 23 October 2026. Our practice content is original and unofficial.')+`<div class="en-grid"><section class="en-card"><h2>Reading</h2><p>60 minutes, three sections and 40 questions. Academic texts total 2,150–2,750 words. Each correct answer earns one mark. Read the precise word limit for completion questions.</p><a href="https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-reading" target="_blank" rel="noopener">Official Reading format ↗</a></section><section class="en-card"><h2>Listening</h2><p>Four parts, 40 questions, approximately 30 minutes. Recordings are heard once. The first two parts use everyday situations; the last two use education or training contexts. Paper answer-transfer time differs from computer delivery.</p><a href="https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-listening" target="_blank" rel="noopener">Official Listening format ↗</a></section><section class="en-card"><h2>Writing</h2><p>60 minutes for two tasks. Task 1: at least 150 words describing visual information, about 20 minutes. Task 2: at least 250 words responding to an argument or problem, about 40 minutes. Task 2 carries twice the weight.</p><p>Criteria: Task Achievement / Task Response, Coherence and Cohesion, Lexical Resource, Grammatical Range and Accuracy.</p><a href="https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-writing" target="_blank" rel="noopener">Official Writing format ↗</a></section><section class="en-card"><h2>Speaking</h2><p>11–14 minutes with an examiner: familiar topics; a longer turn with one minute’s preparation and up to two minutes speaking; then a more abstract discussion.</p><p>Criteria: Fluency and Coherence, Lexical Resource, Grammatical Range and Accuracy, Pronunciation. Typed answers cannot assess pronunciation.</p><a href="https://ielts.org/take-a-test/test-types/ielts-academic-test/ielts-academic-format-speaking" target="_blank" rel="noopener">Official Speaking format ↗</a></section></div><section class="en-card en-section"><h2>What this app is based on</h2><p>IELTS.org supplies the format and assessment guidance. The reading passages, question sets, writing tasks, speaking prompts and synthetic listening recordings here are newly authored practice. They are not past IELTS papers, not Economist articles and not an official IELTS product. We do not convert scores on these uncalibrated sets into IELTS bands.</p><p>Your two- and eight-minute blocks develop skills. Full sections develop pacing. A few samples identify practice priorities; a credible band assessment needs sufficient complete work and appropriately qualified review.</p><div class="en-row"><a class="en-button" href="https://ielts.org/take-a-test/preparation-resources/sample-test-questions/academic-test" target="_blank" rel="noopener">Official samples & human recordings ↗</a><a class="en-button" href="https://ielts.org/take-a-test/your-results/ielts-scoring-in-detail" target="_blank" rel="noopener">Official scoring guidance ↗</a></div></section><section class="en-card en-section"><h2>Optional reading from The Economist</h2><p>Choose an article you can access through the subscription. Read a manageable section, identify its claim and evidence, then explain the idea in your own words. Collect a few useful phrases in context. This supplements exam practice; the app does not copy or unlock subscription articles.</p></section><section class="en-card en-section"><h2>Your work and your privacy</h2><p><a href="./english-review-prompts.md" download>Download standalone Writing and Speaking review prompts</a></p><p>Drafts, answers, results and feedback you choose to enter sync to your study account. You can start dictation or audio recording yourself. Dictation may use your browser’s speech service and inserts editable text. Recordings stay in this browser on this device; download one to attach in your own ChatGPT conversation. They do not automatically upload or sync. We do not ask for ID numbers or health information.</p><p>your teacher’s shared overview contains learning summaries, not the text of your essays, recordings or pasted reviews. Automated band scoring is unavailable. You can request external feedback yourself.</p></section>`;}
 async function copyPrompt(a){const text=E.feedbackPrompt(a,tasks(a));try{await navigator.clipboard.writeText(text);message('Review prompt copied. Paste it into your own ChatGPT chat.');}catch{const field=document.getElementById('en-review-prompt');if(field){field.closest('details').open=true;field.focus();field.select();message('Select and copy the highlighted prompt.');}}}
 function download(text,name,type='text/plain'){const url=URL.createObjectURL(new Blob([text],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);}
-const audioRecord=(id,blob)=>window.IELTSAudioStorage.record(id,blob);
-function recoverRecording(blob,id){
- let panel=document.getElementById('en-record-recovery');
- if(!panel){panel=document.createElement('section');panel.id='en-record-recovery';panel.className='en-card';panel.setAttribute('role','status');panel.innerHTML='<h2>Download your unsaved recording</h2><p>Browser storage could not save this audio. Download it before closing or reloading this page. Your typed work is saved separately.</p>';main.after(panel);window.addEventListener('beforeunload',e=>{e.preventDefault();e.returnValue='';});}
- const link=document.createElement('a');link.className='en-button';link.href=URL.createObjectURL(blob);link.download=`english-speaking-${id.slice(0,8)}.${window.IELTSAudioStorage.extension(blob.type)}`;link.textContent='Download recording';panel.append(link);panel.scrollIntoView({block:'nearest'});
+const localAudio = window.IELTSAudioStorage.createRecordingStore('study-english-audio-v1');
+const audioRecord = (id, blob, topic) => localAudio.keepForWeek(id, {blob, topic, at:Date.now()});
+function clearAudioPreview(){
+ audioViewGeneration++;
+ clearTimeout(expiryTimer);
+ if(audioURL){URL.revokeObjectURL(audioURL);audioURL=null;}
 }
-async function showRecording(id,target){const holder=document.getElementById(target);if(!holder)return;try{const blob=await audioRecord(id);if(!blob){holder.innerHTML='<p class="en-note">The recording is on the device where it was made. Open that device to download it.</p>';return;}if(audioURL)URL.revokeObjectURL(audioURL);audioURL=URL.createObjectURL(blob);holder.innerHTML=`<audio controls src="${audioURL}"></audio><a class="en-button" href="${audioURL}" download="english-speaking-${id.slice(0,8)}.${window.IELTSAudioStorage.extension(blob.type)}">Download my recording</a>`;}catch{holder.textContent='The browser could not open the local recording.';}}
+async function showLocalAudioList(){
+ const holder=document.getElementById('en-local-audio-list');
+ if(!holder)return;
+ try{
+  await localAudio.purgeExpired();
+  const clips=[];
+  for(const id of await localAudio.keys()){
+   const entry=await localAudio.record(id);
+   if(!entry)continue;
+   const attempt=state.sessions.find(a=>a.id===id);
+   const title=entry.topic||attempt?.title||'Earlier speaking recording';
+   const at=entry.at||attempt?.completedAt||attempt?.startedAt;
+   const detail=entry.retention==='week-v1'?'Expires '+date(entry.expiresAt):'Earlier recording · keep or delete yourself';
+   clips.push('<li><strong>'+esc(title)+'</strong><p>'+esc(at?date(at)+' · ':'')+esc(detail)+'</p>'+button('Open recording','local-audio','data-id="'+esc(id)+'"','small')+'</li>');
+  }
+  holder.innerHTML=clips.length?'<ul class="en-history">'+clips.join('')+'</ul>':'<p>No IELTS audio is currently stored in this browser.</p>';
+ }catch{holder.textContent='Local recordings could not be opened.';}
+}
+function recoverRecording(blob,id,error){
+ const panel=document.createElement('section');
+ panel.id='en-record-recovery';panel.className='en-card';panel.setAttribute('role','status');
+ const title=document.createElement('h2');title.textContent='Download your unsaved recording';
+ const detail=document.createElement('p');
+ const reason=error?.code==='limit'?'The local IELTS limit is 3 recordings or 10 MiB. Manage clips under My progress. ':error?.code==='legacy'?'Your earlier recording for this attempt is protected. ':'The browser could not keep this recording. ';
+ detail.textContent=reason+'Download this clip before leaving, then dismiss it. Your transcript saves separately.';
+ const link=document.createElement('a');link.className='en-button';link.href=URL.createObjectURL(blob);link.download='english-speaking-'+id.slice(0,8)+'.'+window.IELTSAudioStorage.extension(blob.type);link.textContent='Download recording';
+ const dismiss=document.createElement('button');dismiss.type='button';dismiss.className='en-button';dismiss.textContent='Discard temporary copy';
+ const warn=e=>{e.preventDefault();e.returnValue='';};
+ dismiss.onclick=()=>{
+  if(!window.confirm('Discard this temporary audio? Download it first if you want to keep it.'))return;
+  URL.revokeObjectURL(link.href);window.removeEventListener('beforeunload',warn);pendingRecovery=null;panel.remove();
+ };
+ pendingRecovery=panel;window.addEventListener('beforeunload',warn);
+ panel.append(title,detail,link,dismiss);main.after(panel);panel.scrollIntoView({block:'nearest'});
+}
+async function showRecording(id,target){
+ const holder=document.getElementById(target);
+ if(!holder)return;
+ clearAudioPreview();
+ const request=audioViewGeneration;
+ const stillHere=()=>request===audioViewGeneration&&document.getElementById(target)===holder;
+ try{
+  await localAudio.purgeExpired();
+  const value=await localAudio.record(id);
+  if(!stillHere())return;
+  if(!value){holder.textContent='No audio for this attempt is stored in this browser. It may have expired, been deleted or been recorded on another device.';return;}
+  const blob=value.blob||value;
+  audioURL=URL.createObjectURL(blob);
+  const managed=value.retention==='week-v1';
+  const availability=managed?'Available on this device until '+date(value.expiresAt)+'.':'Earlier recording on this device. You can delete it when you finish.';
+  holder.innerHTML='<p class="en-note">'+esc(availability)+'</p><audio controls src="'+esc(audioURL)+'"></audio> <a class="en-button" href="'+esc(audioURL)+'" download="english-speaking-'+esc(id.slice(0,8))+'.'+window.IELTSAudioStorage.extension(blob.type)+'">Download my recording</a> '+button('Delete local audio','delete-local-audio','data-id="'+esc(id)+'"','small');
+  if(managed)expiryTimer=setTimeout(()=>{
+   if(!stillHere())return;
+   clearAudioPreview();holder.textContent='This recording has expired. Your study result stays saved.';
+   localAudio.purgeExpired().then(showLocalAudioList).catch(()=>{});
+  },Math.max(0,value.expiresAt-Date.now()));
+ }catch{if(stillHere())holder.textContent='The browser could not open its local recordings.';}
+}
+async function deleteLocalAudio(id){
+ if(!window.confirm('Delete this audio from this browser? Your transcript and study result stay saved.'))return;
+ try{
+  await localAudio.remove(id);clearAudioPreview();
+  if(view==='progress')renderProgress();else if(view==='result')renderResult();else if(view==='session')renderSession();
+  message('Local audio deleted.');
+ }catch{message('The recording could not be deleted. Try again.');}
+}
+document.addEventListener('study-microphone-start',event=>{
+ if(recordBusy&&event.detail?.source!=='ielts-audio')event.preventDefault();
+});
 async function record(){
  const a=current();if(!a||recordBusy)return;
+ if(pendingRecovery){pendingRecovery.scrollIntoView({block:'nearest'});message('Download or discard the previous temporary clip before recording another.');return;}
  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){message('Recording is unavailable here. You can use your phone’s recorder and attach that file in ChatGPT, or type a response.');return;}
- recordBusy=true;document.querySelector('[data-action="record"]')?.setAttribute('disabled','');
+ const allowed=document.dispatchEvent(new CustomEvent('study-microphone-start',{cancelable:true,detail:{source:'ielts-audio'}}));
+ if(!allowed){message('Stop the active microphone before starting a recording.');return;}
+ const request=recordRequest={};let opened=false;recorder=null;recordBusy=true;document.querySelector('[data-action="record"]')?.setAttribute('disabled','');
  try{
   const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  if(recordRequest!==request){stream.getTracks().forEach(t=>t.stop());return;}
+  opened=true;recordRequest=null;
   if(current()?.id!==a.id||view!=='session'){stream.getTracks().forEach(t=>t.stop());recordBusy=false;return;}
-  recordStream=stream;const recordingId=a.id,startedAt=Date.now(),chunks=[],mime=['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(m=>MediaRecorder.isTypeSupported(m));
+  recordStream=stream;const recordingId=a.id,startedAt=Date.now(),chunks=[],mime=['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(m=>MediaRecorder.isTypeSupported?.(m));
   const capture=new MediaRecorder(stream,mime?{mimeType:mime}:{});recorder=capture;
   capture.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
   capture.onstop=async()=>{
-   const blob=new Blob(chunks,{type:chunks[0]?.type||mime||'audio/webm'});
+   const blob=new Blob(chunks,{type:chunks[0]?.type||capture.mimeType||mime||'audio/webm'});
    try{
     if(!blob.size){message('No audio was captured. Try recording again or type your response.');return;}
-    await audioRecord(recordingId,blob);
+    await audioRecord(recordingId,blob,a.title);
     const item=state.sessions.find(x=>x.id===recordingId);if(!item)throw Error('The recording could not be attached to this attempt');
     item.recorded=true;item.recordingSeconds=Math.round((Date.now()-startedAt)/1000);item.updatedAt=Date.now();save();
     if(current()?.id===recordingId&&view==='session'){
-     const holder=document.getElementById('en-record-status');if(holder)holder.textContent='Recording saved on this device. Download it to attach to ChatGPT.';
+     const holder=document.getElementById('en-record-status');if(holder)holder.textContent='Recording saved for 7 days on this device. Download to keep or share it.';
      showRecording(recordingId,'en-record-preview');
     }
-    if(pendingTimedSubmission===recordingId){
-     pendingTimedSubmission=null;const activeId=state.activeId;state.activeId=recordingId;E.submit(state,[],Date.now(),true);if(activeId!==recordingId)state.activeId=activeId;save();
-     if(activeId===recordingId){selectedResult=recordingId;go('result');}
-    }else if(view==='result'&&selectedResult===recordingId)renderResult();
-   }catch{
-    recoverRecording(blob,recordingId);
-    if(current()?.id===recordingId){const holder=document.getElementById('en-record-status');if(holder)holder.textContent='Recording not saved to browser storage. Download the audio below.';}
+    if(view==='result'&&selectedResult===recordingId)renderResult();
+   }catch(error){
+    recoverRecording(blob,recordingId,error);
+    const holder=document.getElementById('en-record-status');
+    if(holder)holder.textContent='Audio was not saved. Your transcript is still available.';
    }finally{
     recordBusy=false;stream.getTracks().forEach(t=>t.stop());if(recordStream===stream)recordStream=null;
     document.querySelector('[data-action="record"]')?.removeAttribute('disabled');document.querySelector('[data-action="stop-record"]')?.setAttribute('disabled','');
+    if(pendingTimedSubmission===recordingId){
+     pendingTimedSubmission=null;
+     const activeId=state.activeId;
+     state.activeId=recordingId;E.submit(state,[],Date.now(),true);if(activeId!==recordingId)state.activeId=activeId;save();
+     if(activeId===recordingId){selectedResult=recordingId;go('result');}
+    }
    }
   };
   capture.start();document.querySelector('[data-action="stop-record"]').disabled=false;document.getElementById('en-record-status').textContent='Recording… press Stop & save when finished.';
  }catch{
-  recordBusy=false;recordStream?.getTracks().forEach(t=>t.stop());recordStream=null;document.querySelector('[data-action="record"]')?.removeAttribute('disabled');
+  if(!opened&&recordRequest!==request)return;
+  recordRequest=null;recordBusy=false;recordStream?.getTracks().forEach(t=>t.stop());recordStream=null;document.querySelector('[data-action="record"]')?.removeAttribute('disabled');
   message('Microphone access was not available. You can allow it in browser settings, use your phone’s recorder, or type your response.');
  }
 }
@@ -177,9 +265,12 @@ main.addEventListener('input',e=>{const a=current();if(!a||a.completedAt)return;
  if(e.target.dataset.question){E.answer(state,e.target.dataset.question,e.target.value);save();const label=document.getElementById('en-answered');if(label)label.textContent=`${Object.values(a.answers).filter(x=>x.trim()).length} / ${questions(a).length} answers entered. Blank answers are allowed.`;}
  if(e.target.dataset.text){a.texts[e.target.dataset.text]=e.target.value.slice(0,15000);a.updatedAt=Date.now();save();for(const label of main.querySelectorAll('[data-wordcount]'))label.textContent=`${E.words(a.texts[label.dataset.wordcount])} words · draft saved as you type`;}
 });
+main.addEventListener('toggle',e=>{if(e.target.matches?.('[data-recording-panel]')&&!e.target.open&&recordBusy)stopRecording();},true);
 main.addEventListener('change',e=>{if(e.target.id==='en-confidence'){E.edit(state,'confidence',e.target.value);save();}});
 main.addEventListener('submit',e=>{if(e.target.id!=='en-feedback-form')return;e.preventDefault();const form=e.target,data=new FormData(form);try{E.addEvaluation(state,{sessionId:form.dataset.session,source:data.get('source'),band:data.get('band')||'',feedback:data.get('feedback')});save();renderResult();message('External feedback saved. It is labelled separately from marked answers.');}catch(error){document.getElementById('en-feedback-status').textContent=error.message;}});
 main.addEventListener('click',async e=>{const b=e.target.closest('button[data-action]');if(!b)return;const action=b.dataset.action;
+ if(action==='local-audio'){await showRecording(b.dataset.id,'en-managed-audio');return;}
+ if(action==='delete-local-audio'){await deleteLocalAudio(b.dataset.id);return;}
  if(action==='navigate'){go(b.dataset.page);return;}if(action==='start'){startFrom(b);return;}if(action==='resume'){stopMedia();E.resume(state,b.dataset.id);save();go('session');return;}if(action==='result'){selectedResult=b.dataset.id;go('result');return;}
  if(action==='pause'){const a=current();if(a?.kind==='speaking')a.phaseRemaining=Math.max(0,a.phaseDeadline-Date.now());stopMedia();E.pause(state);save();go('home');return;}
  if(action==='part'){disposePlayer();E.edit(state,'index',Number(b.dataset.index));save();renderSession();return;}
@@ -189,5 +280,13 @@ main.addEventListener('click',async e=>{const b=e.target.closest('button[data-ac
 });
 window.addEventListener('hashchange',route);window.addEventListener('pagehide',()=>{stopMedia();save();});
 window.StudySync.subscribe(E.KEY,data=>{const prior=current()?.id;state=E.restore(data);if(view==='session'&&document.activeElement?.matches('input,textarea,select'))return;if(prior&&current()?.completedAt){selectedResult=prior;view='result';}render();});
+localAudio.purgeExpired().catch(()=>{});
+setInterval(()=>{if(!document.hidden)localAudio.purgeExpired().catch(()=>{});},60000);
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){stopRecording();}else{
+  localAudio.purgeExpired().catch(()=>{});
+  if(view==='progress')showLocalAudioList();
+ }
+});
 setInterval(tick,1000);route();
 })();

@@ -9,6 +9,9 @@ test('Worked example is opt-in; opening it records support. Every ordinary quest
   other.click('begin');
   assert.doesNotMatch(other.main.innerHTML,/data-coach="family-example"/);
   assert.match(other.main.innerHTML,/<reasoning-voice data-session=/);
+  const noteKey=other.main.innerHTML.match(/<study-thought lang="en-GB" data-session="([^"]+)"/)[1];
+  other.click('select','0');
+  assert.ok(other.main.innerHTML.includes('data-session="'+noteKey+'"'), 'same local note after answer redraw');
   const h=screen('xlinked');
   assert.doesNotMatch(h.main.innerHTML,/Trace one chromosome/);
   h.click('family-example');

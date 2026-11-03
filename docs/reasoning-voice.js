@@ -20,6 +20,7 @@
       this.message = '';
       this.clip = null;
       this.unsaved = false;
+      this.temporary = false;
     }
     set(phase, message = '') {
       this.phase = phase;
@@ -28,14 +29,28 @@
     }
     async load() {
       try {
+        await this.store.purgeExpired();
         this.clip = await this.store.record(this.id);
         this.set('ready');
       } catch {
         this.set('ready', 'Varasemat helimärkust ei saanud selles brauseris avada.');
       }
     }
+    clearExpiredPreview() {
+      if (!this.temporary && this.clip?.retention === 'week-v1' && this.clip.expiresAt <= Date.now()) {
+        this.clip = null;
+        if (this.phase === 'ready') this.set('ready', 'Selle salvestise säilitusaeg on lõppenud.');
+        this.store.purgeExpired().catch(() => {});
+      }
+    }
     async start() {
+      this.clearExpiredPreview();
       if (this.phase !== 'ready' || !supported()) return;
+      const claim = new root.CustomEvent('study-microphone-start', {cancelable:true, detail:{source:'biology-audio'}});
+      if (!root.document.dispatchEvent(claim)) {
+        this.set('ready', 'Lõpeta kõigepealt pooleliolev helisalvestus.');
+        return;
+      }
       const attempt = {};
       this.attempt = attempt;
       this.set('request', 'Ootan mikrofoni kasutamise luba…');
@@ -62,25 +77,15 @@
           this.recorder = null;
           const blob = new root.Blob(chunks, {type: chunks[0]?.type || recorder.mimeType || mime});
           if (!blob.size) { this.set('ready', 'Heli ei salvestunud. Saad uuesti proovida.'); return; }
-          this.set('saving', 'Salvestan häälselgitust…');
-          const clip = {blob, topic: this.topic, at: Date.now()};
-          try {
-            await this.store.record(this.id, clip);
-            this.dismissRecovery?.();
-            this.clip = clip;
-            this.unsaved = false;
-            this.set('ready', 'Häälselgitus on salvestatud selle brauseri jaotisse „Minu töö”.');
-            libraries.forEach(library => library.refresh());
-          } catch {
-            this.dismissRecovery?.();
-            this.clip = clip;
-            this.unsaved = true;
-            this.set('ready', 'Brauserisse salvestamine ebaõnnestus. Laadi heli alla enne lehe sulgemist.');
-            if (!this.listeners.size) showRecovery(this);
-          }
+          this.dismissRecovery?.();
+          this.clip = {blob, topic:this.topic, at:Date.now()};
+          this.temporary = true;
+          this.unsaved = false;
+          this.set('ready', 'Ajutine salvestis. Kuula seda siin. Säilita see ainult siis, kui soovid hiljem tagasisidet.');
+          if (!this.listeners.size && notes.get(this.id) === this) notes.delete(this.id);
         };
         recorder.start();
-        this.set('recording', 'Salvestan… Lõpetamiseks vajuta „Peata ja salvesta”.');
+        this.set('recording', 'Salvestan… Lõpetamiseks vajuta „Peata ja kuula”.');
         this.timer = root.setTimeout(() => this.stop(), limit);
       } catch {
         stopTracks(stream);
@@ -98,13 +103,37 @@
         this.recorder.stop();
       }
     }
+    async keep() {
+      if (this.phase !== 'ready' || !this.temporary || !this.clip) return;
+      this.set('saving', 'Salvestan…');
+      try {
+        this.clip = await this.store.keepForWeek(this.id, this.clip);
+        this.temporary = false;
+        this.unsaved = false;
+        this.dismissRecovery?.();
+        this.set('ready', 'Säilitatud kuni seitse päeva selles brauseris.');
+        libraries.forEach(library => library.refresh());
+      } catch (error) {
+        this.unsaved = true;
+        const reason = error.code === 'limit' ? 'Bioloogia salvestiste piir on täis (3 faili või 10 MiB).'
+          : error.code === 'legacy' ? 'Selle ploki varasem helifail on juba alles.' : 'Helifaili ei saanud säilitada.';
+        this.set('ready', reason + ' Saad ajutise salvestise alla laadida enne lahkumist.');
+        if (!this.listeners.size) showRecovery(this);
+      }
+    }
     async remove() {
       if (this.phase !== 'ready') return;
       this.set('saving', 'Kustutan…');
       try {
-        await this.store.remove(this.id);
+        if (this.temporary) {
+          // A discarded preview must not remove any existing recording for this lesson.
+          this.clip = await this.store.record(this.id);
+        } else {
+          await this.store.remove(this.id);
+          this.clip = null;
+        }
+        this.temporary = false;
         this.dismissRecovery?.();
-        this.clip = null;
         this.unsaved = false;
         this.set('ready', 'Häälselgitus kustutatud.');
         libraries.forEach(library => library.refresh());
@@ -167,11 +196,18 @@
           note.load();
         }
         this.note = note;
+        this.panel = this.closest('details');
+        this.onToggle = () => { if (!this.panel.open) note.stop(); };
+        if (this.panel) {
+          if (['request','recording'].includes(note.phase)) this.panel.open = true;
+          this.panel.addEventListener('toggle', this.onToggle);
+        }
         this.onChange = () => this.render();
         note.listeners.add(this.onChange);
         this.render();
       }
       disconnectedCallback() {
+        this.panel?.removeEventListener('toggle', this.onToggle);
         this.note?.listeners.delete(this.onChange);
         this.releaseURL();
         // IMAT redraws the question after an answer choice. The replacement
@@ -195,10 +231,10 @@
         const box = el('div');
         box.className = 'reasoning-voice-controls';
         if (this.dataset.mode !== 'playback') {
-          const hint = el('small', 'Võid öelda oma põhjenduse valjusti. Häälselgitus (kuni 1 min) jääb sellesse brauserisse. Tagasiside saamiseks saad seda ise jagada.');
+          const hint = el('small', 'Helifail on ajutine (kuni 1 min). Kui soovid hiljem tagasisidet, saad faili jätta kuni seitsmeks päevaks sellesse brauserisse.');
           box.append(hint);
           if (n.phase === 'recording' || n.phase === 'request') {
-            box.append(button(n.phase === 'request' ? 'Loobu' : 'Peata ja salvesta', () => n.stop()));
+            box.append(button(n.phase === 'request' ? 'Loobu' : 'Peata ja kuula', () => n.stop()));
           } else if (supported()) {
             const record = button(n.clip ? 'Salvesta uus häälselgitus' : 'Salvesta häälselgitus', () => n.start());
             record.insertAdjacentHTML('afterbegin','<svg aria-hidden="true" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:.4em"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg>');
@@ -211,6 +247,9 @@
         const status = el('p', n.message);
         status.setAttribute('role', 'status');
         if (n.phase === 'ready' && n.clip) {
+          if (n.temporary) box.append(button('Hoia 7 päeva', () => n.keep()));
+          else if (n.clip.expiresAt) box.append(el('small', 'Säilib kuni ' + new Date(n.clip.expiresAt).toLocaleString('et-EE')));
+          else box.append(el('small', 'Varasem salvestis. Kustuta see ise, kui sa seda enam ei vaja.'));
           const fileName = clipName(n.clip);
           const audio = el('audio');
           audio.controls = true;
@@ -230,7 +269,7 @@
               catch (error) { if (error?.name !== 'AbortError') status.textContent = 'Jagamine ei õnnestunud. Saad helifaili alla laadida.'; }
             }));
           }
-          box.append(button('Kustuta häälselgitus', () => {
+          box.append(button(n.temporary ? 'Loobu ajutisest helist' : 'Kustuta häälselgitus', () => {
             if (root.confirm('Kustutan selle häälselgituse sellest brauserist?')) n.remove();
           }));
         }
@@ -248,16 +287,17 @@
         const version = this.version = (this.version || 0) + 1;
         const box = el('div');
         try {
+          await storage.purgeExpired();
           const ids = await storage.keys();
           const summaries = [];
           for (const id of ids) {
             const clip = await storage.record(id);
-            if (clip?.blob) summaries.push({id, topic: clip.topic, at: clip.at});
+            if (clip?.blob) summaries.push({id, topic: clip.topic, at: clip.at, expiresAt: clip.expiresAt});
           }
           if (!summaries.length) box.append(el('p', 'Siin ei ole veel bioloogia häälselgitusi.'));
           for (const item of summaries.sort((a,b) => b.at-a.at)) {
             const row = el('details');
-            row.append(el('summary', item.topic + ' · ' + new Date(item.at).toLocaleString('et-EE')));
+            row.append(el('summary', item.topic + ' · ' + new Date(item.at).toLocaleString('et-EE') + (item.expiresAt ? ' · säilib kuni ' + new Date(item.expiresAt).toLocaleDateString('et-EE') : ' · varasem salvestis')));
             row.addEventListener('toggle', () => {
               if (row.open && !row.querySelector('reasoning-voice')) {
                 const player = el('reasoning-voice');
@@ -274,9 +314,22 @@
     }
     root.customElements.define('reasoning-voice', Voice);
     root.customElements.define('reasoning-voice-library', Library);
+    document.addEventListener('study-microphone-start', event => {
+      for (const note of notes.values()) {
+        if (['request','recording','saving'].includes(note.phase)) { event.preventDefault(); break; }
+      }
+    });
     const stopAll = () => notes.forEach(note => note.stop());
     root.addEventListener('pagehide', stopAll);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) stopAll(); });
+    const refresh = () => {
+      notes.forEach(note => note.clearExpiredPreview());
+      libraries.forEach(library => library.refresh());
+    };
+    root.addEventListener('pageshow', refresh);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopAll();
+      else refresh();
+    });
   }
   return {Note, install};
 });

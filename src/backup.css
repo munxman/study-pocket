@@ -11,3 +11,10 @@ reasoning-voice { display: block; margin: .75rem 0; }
 .reasoning-voice-controls button { min-height: 44px; padding: .4rem .8rem; cursor: pointer; font: inherit; color: inherit; background: transparent; border: 1px solid #78918b; border-radius: .6rem; }
 .reasoning-voice-controls p:empty { display: none; }
 .reasoning-voice-controls audio { max-width: 100%; }
+study-thought { display: block; margin: .65rem 0; }
+study-thought details > label, study-thought textarea, study-thought small { display: block; margin: .5rem 0; }
+study-thought textarea { width: 100%; max-width: 100%; box-sizing: border-box; font: inherit; }
+study-thought .thought-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+study-thought button, study-thought select, study-thought summary { min-height: 42px; font: inherit; }
+study-thought [hidden] { display:none; }
+study-thought .thought-language { display: inline-flex; gap: .45em; align-items: center; font-size: .9em; }
