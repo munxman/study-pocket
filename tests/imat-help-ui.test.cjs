@@ -4,11 +4,11 @@ function screen(topic='nephron-filtration'){const state=E.fresh();E.start(state,
 test('Unfamiliar IMAT topic offers explanation before question/options without forcing a guess',()=>{const h=screen();assert.ok(h.main.innerHTML.indexOf('Õpin enne vastamist')<h.main.innerHTML.indexOf('<h1 class="imat-question"'));assert.match(h.main.innerHTML,/sa ei pea pakkuma/);h.click('help');assert.match(h.main.innerHTML,/One idea to understand/);assert.ok(h.main.innerHTML.includes(B.concepts.find(c=>c.id==='nephron-filtration').canonical));const a=E.active(h.read());assert.equal(a.selected,null);assert.equal(a.answeredAt,0);assert.equal(a.assisted,true);assert.equal(a.englishHelp,true);assert.equal(E.restore(h.read(),B).sessions[0].englishHelp,true);});
 test('Hiding help does not turn a supported answer into independent recall; continuation works',()=>{const h=screen();h.click('help');h.click('help');let s=h.read(),a=E.active(s);assert.equal(a.assisted,true);assert.equal(a.englishHelp,false);h.click('select',String(E.question(B,a).answer));h.click('confidence','sure');h.click('submit');a=E.active(h.read());assert.equal(a.correct,true);assert.equal(a.delayedProbe,false);assert.equal(a.stage,'feedback');h.click('retry');a=E.active(h.read());h.click('retry-select',String(E.retryQuestion(B,a).answer));h.click('retry-submit');assert.equal(E.active(h.read()).stage,'done');h.click('more');assert.notEqual(E.active(h.read()).concept,'nephron-filtration');});
 
-test('Worked example is opt-in; opening it records support. Every ordinary question can be explained aloud',()=>{
+test('Worked example is opt-in; opening it records support. Ordinary questions have optional text notes without a sound-file prompt',()=>{
   const other=screen('enzyme');
   other.click('begin');
   assert.doesNotMatch(other.main.innerHTML,/data-coach="family-example"/);
-  assert.match(other.main.innerHTML,/<reasoning-voice data-session=/);
+  assert.doesNotMatch(other.main.innerHTML,/<reasoning-voice|Soovin salvestada helifaili/);
   const noteKey=other.main.innerHTML.match(/<study-thought lang="en-GB" data-session="([^"]+)"/)[1];
   other.click('select','0');
   assert.ok(other.main.innerHTML.includes('data-session="'+noteKey+'"'), 'same local note after answer redraw');

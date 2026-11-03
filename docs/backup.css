@@ -18,3 +18,11 @@ study-thought .thought-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
 study-thought button, study-thought select, study-thought summary { min-height: 42px; font: inherit; }
 study-thought [hidden] { display:none; }
 study-thought .thought-language { display: inline-flex; gap: .45em; align-items: center; font-size: .9em; }
+study-teachback, study-teachback-library, study-teachback-home:not(:empty) { display: block; margin: .7rem 0; overflow-wrap: anywhere; }
+study-teachback details, study-teachback-library details { padding: .55rem .75rem; border: 1px solid #b6c8c2; border-radius: .65rem; }
+study-teachback summary, study-teachback-library summary { cursor: pointer; padding: .4rem 0; }
+.teachback-editor label, .teachback-editor small, .teachback-editor textarea { display: block; margin: .45rem 0; }
+.teachback-editor textarea { box-sizing: border-box; width: 100%; max-width: 100%; padding: .5rem; font: inherit; }
+.teachback-editor select, .teachback-editor button { min-height: 42px; font: inherit; }
+study-teachback .thought-actions, study-teachback-library .thought-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+study-teachback [hidden], study-teachback-library [hidden] { display: none; }
