@@ -28,13 +28,23 @@
      if(v.answeredAt&&!s.cards[v.concept])throw Error('IMAT korduskaart puudub.');
      const clean={};for(const k of ['id','concept','level','stage','startedAt','selected','confidence','paraphrased','retryParaphrased','retrySelected','error','answeredAt','completedAt','assisted','scaffold','englishHelp','moreChosen','review','closed','retrySubmitted'])clean[k]=v[k];
      for(const k of ['questionIndex','retryIndex','targetedPractice'])if(v[k]!==undefined)clean[k]=v[k];
+     if(v.concept==='xlinked'&&v.familyExampleSeen===true)clean.familyExampleSeen=true;
+     if(v.concept==='xlinked'&&v.familyPedigree==='maternal-grandfather'&&[3,4].includes(v.questionIndex))clean.familyPedigree=v.familyPedigree;
      if(v.targetedPractice&&v.completedAt)clean.checkCorrect=v.retryAnswers.at(-1)===retryQuestion(bank,v).answer;
      clean.delayedProbe=typeof v.delayedProbe==='boolean'?v.delayedProbe:null;clean.retryAnswers=[...v.retryAnswers];clean.retryErrors=[...v.retryErrors];clean.correct=clean.answeredAt?clean.selected===q.answer:null;s.sessions.push(clean);seen.add(v.id);
    }
    s.activeId=seen.has(value.activeId)?value.activeId:null;return s;
  }
  function active(s){return s.sessions.find(v=>v.id===s.activeId)||null;}
- const question=(bank,a)=>{const c=bank.concepts.find(c=>c.id===a.concept);return a.questionIndex===undefined?c.questions.find(q=>q.level===a.level):c.questions[a.questionIndex];};
+ function question(bank,a){
+   const c=bank.concepts.find(c=>c.id===a.concept);
+   const base=a.questionIndex===undefined?c.questions.find(q=>q.level===a.level):c.questions[a.questionIndex];
+   if(a.concept!=='xlinked'||a.familyPedigree!=='maternal-grandfather'||![3,4].includes(a.questionIndex))return base;
+   // Keep the original option order and key so older clients can read the same session.
+   const family='In a fictional family, a grandfather has an X-linked recessive trait. His daughter inherits his variant and a usual allele from her mother. Her partner does not carry the variant. Assume the simple XX/XY model and full penetrance.';
+   const ask=a.questionIndex===3?'Among this couple’s SONS, what proportion are expected to show the trait?':'Assume sons and daughters are equally likely. What is the probability that their next CHILD is a son who shows the trait?';
+   return {...base,prompt:family+' '+ask};
+ }
  const retryQuestion=(bank,a)=>bank.concepts.find(c=>c.id===a.concept).questions[a.retryIndex??2];
  function leastRecent(s,c,pool,exclude=null){const used=new Map();for(const a of s.sessions.filter(a=>a.concept===c.id)){if(a.answeredAt)used.set(a.questionIndex??(a.level==='application'?1:0),Math.max(used.get(a.questionIndex??(a.level==='application'?1:0))||0,a.answeredAt));if(a.completedAt)used.set(a.retryIndex??2,Math.max(used.get(a.retryIndex??2)||0,a.completedAt));}return pool.filter(i=>i!==exclude).sort((a,b)=>(used.get(a)||0)-(used.get(b)||0))[0];}
  function recommend(s,bank,now=Date.now()){
@@ -52,9 +62,16 @@
    const concept=bank.concepts.find(c=>c.id===preferred)||recommend(s,bank,now)||(allowPractice?bank.concepts.filter(c=>s.cards[c.id]&&!c.targeted).sort((a,b)=>s.cards[a.id].lastExposure-s.cards[b.id].lastExposure)[0]:null);if(!concept)return null;const c=s.cards[concept.id],review=!!c,scaffold=!!c&&c.failures>=2;
    const session={id:'i'+(++s.serial)+'-'+(root.crypto?.randomUUID?.()||Math.random().toString(36).slice(2)),concept:concept.id,level:c?.recalls>=2?'application':'basic',stage:review&&!scaffold?'question':'lesson',startedAt:now,selected:null,confidence:null,paraphrased:false,retryParaphrased:false,retrySelected:null,error:null,answeredAt:0,completedAt:0,correct:null,delayedProbe:null,retryAnswers:[],retryErrors:[],retrySubmitted:false,assisted:!review||scaffold,scaffold,englishHelp:false,moreChosen:false,review,closed:false};
    if(concept.targeted||concept.questionFirst){session.targetedPractice=true;session.stage='question';session.assisted=false;session.scaffold=false;session.questionIndex=leastRecent(s,concept,concept.probeQuestions);session.retryIndex=concept.supportQuestions[0];}
+   if(concept.id==='xlinked'&&c&&now-c.lastExposure>=DAY&&now>=c.due){
+     const history=s.sessions.filter(a=>a.concept===concept.id);
+     if(history.some(a=>a.familyExampleSeen)&&!history.some(a=>a.familyPedigree)){
+       session.familyPedigree='maternal-grandfather';
+       session.questionIndex=leastRecent(s,concept,[3,4]);
+     }
+   }
    s.sessions.push(session);s.activeId=session.id;return session;
  }
- function expose(s,now=Date.now()){const a=active(s);if(!a)return;a.assisted=true;const c=s.cards[a.concept];if(c)c.lastExposure=now;}
+ function expose(s,now=Date.now()){const a=active(s);if(!a)return;if(!a.answeredAt)a.assisted=true;const c=s.cards[a.concept];if(c)c.lastExposure=now;}
  function submit(s,bank,now=Date.now()){
    const a=active(s);if(!a||a.stage!=='question'||a.selected===null||!a.confidence)return false;
    const concept=bank.concepts.find(c=>c.id===a.concept),q=question(bank,a),c=s.cards[a.concept]||card();

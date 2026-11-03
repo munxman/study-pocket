@@ -1,5 +1,57 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const B=require('../src/imat-english.js')(require('../src/imat-content.js')),E=require('../src/imat-engine.js');
-function screen(){const state=E.fresh();E.start(state,B,Date.now(),'nephron-filtration');let saved=JSON.stringify(state);const events={},main={innerHTML:'',querySelector:()=>null,querySelectorAll:()=>[]};const ctx={IMAT_CONTENT:B,ImatEngine:E,URLSearchParams,location:{search:'',hash:'#learn'},document:{activeElement:null,getElementById:()=>main,addEventListener:(name,fn)=>events[name]=fn},localStorage:{getItem:()=>saved,setItem:(key,value)=>saved=value},addEventListener(){},scrollTo(){}};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('src/imat.js','utf8'),ctx);return{main,read:()=>JSON.parse(saved),click(action,value){events.click({target:{closest:()=>({dataset:{coach:action,value},disabled:false})}});}};}
+function screen(topic='nephron-filtration'){const state=E.fresh();E.start(state,B,Date.now(),topic);let saved=JSON.stringify(state);const events={},main={innerHTML:'',querySelector:()=>null,querySelectorAll:()=>[]};const ctx={IMAT_CONTENT:B,ImatEngine:E,URLSearchParams,location:{search:'',hash:'#learn'},document:{activeElement:null,getElementById:()=>main,addEventListener:(name,fn)=>events[name]=fn},localStorage:{getItem:()=>saved,setItem:(key,value)=>saved=value},addEventListener(){},scrollTo(){}};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('src/imat.js','utf8'),ctx);return{main,read:()=>JSON.parse(saved),click(action,value){events.click({target:{closest:()=>({dataset:{coach:action,value},disabled:false})}});}};}
 test('Unfamiliar IMAT topic offers explanation before question/options without forcing a guess',()=>{const h=screen();assert.ok(h.main.innerHTML.indexOf('Õpin enne vastamist')<h.main.innerHTML.indexOf('<h1 class="imat-question"'));assert.match(h.main.innerHTML,/sa ei pea pakkuma/);h.click('help');assert.match(h.main.innerHTML,/One idea to understand/);assert.ok(h.main.innerHTML.includes(B.concepts.find(c=>c.id==='nephron-filtration').canonical));const a=E.active(h.read());assert.equal(a.selected,null);assert.equal(a.answeredAt,0);assert.equal(a.assisted,true);assert.equal(a.englishHelp,true);assert.equal(E.restore(h.read(),B).sessions[0].englishHelp,true);});
 test('Hiding help does not turn a supported answer into independent recall; continuation works',()=>{const h=screen();h.click('help');h.click('help');let s=h.read(),a=E.active(s);assert.equal(a.assisted,true);assert.equal(a.englishHelp,false);h.click('select',String(E.question(B,a).answer));h.click('confidence','sure');h.click('submit');a=E.active(h.read());assert.equal(a.correct,true);assert.equal(a.delayedProbe,false);assert.equal(a.stage,'feedback');h.click('retry');a=E.active(h.read());h.click('retry-select',String(E.retryQuestion(B,a).answer));h.click('retry-submit');assert.equal(E.active(h.read()).stage,'done');h.click('more');assert.notEqual(E.active(h.read()).concept,'nephron-filtration');});
+
+test('Worked example is opt-in; opening it records support. Every ordinary question can be explained aloud',()=>{
+  const other=screen('enzyme');
+  other.click('begin');
+  assert.doesNotMatch(other.main.innerHTML,/data-coach="family-example"/);
+  assert.match(other.main.innerHTML,/<reasoning-voice data-session=/);
+  const h=screen('xlinked');
+  assert.doesNotMatch(h.main.innerHTML,/Trace one chromosome/);
+  h.click('family-example');
+  assert.match(h.main.innerHTML,/Trace one chromosome/);
+  assert.equal(E.active(h.read()).assisted,true);
+  h.click('family-example');
+  assert.doesNotMatch(h.main.innerHTML,/Trace one chromosome/);
+  const saved=E.restore(h.read(),B);
+  assert.equal(E.active(saved).familyExampleSeen,true);
+  assert.equal(E.active(saved).assisted,true);
+});
+
+test('An optional worked example leads to one later different pedigree, preserving compatible keys and unaided recall',()=>{
+  const s=E.fresh(), t=Date.UTC(2026,10,3,18);
+  const original=E.start(s,B,t,'xlinked');
+  E.expose(s,t);
+  original.familyExampleSeen=true;
+  original.selected=E.question(B,original).answer;
+  original.confidence='sure';
+  E.submit(s,B,t+1);
+  E.beginRetry(s);
+  original.retrySelected=E.retryQuestion(B,original).answer;
+  E.retry(s,B,t+2);
+  assert.notEqual(E.more(s,B,t+3).concept,'xlinked');
+  E.stop(s);
+  const early=E.start(s,B,t+100,'xlinked');
+  assert.equal(early.familyPedigree,undefined);
+  E.stop(s);
+  const next=E.start(s,B,t+2*E.DAY,'xlinked');
+  assert.equal(next.familyPedigree,'maternal-grandfather');
+  const restored=E.restore(require('../src/sync-model.js').merge(E.KEY,null,s,null),B);
+  const fresh=E.question(B,E.active(restored));
+  assert.match(fresh.prompt,/grandfather/);
+  assert.equal(fresh.answer,B.concepts.find(c=>c.id==='xlinked').questions[next.questionIndex].answer);
+  next.selected=fresh.answer;
+  next.confidence='sure';
+  E.submit(s,B,t+2*E.DAY+1);
+  assert.equal(next.delayedProbe,true);
+  E.beginRetry(s);
+  E.expose(s,t+2*E.DAY+2);
+  assert.equal(next.assisted,false,'help on a follow-up must not reclassify an earlier submission');
+  next.retrySelected=E.retryQuestion(B,next).answer;
+  E.retry(s,B,t+2*E.DAY+3);
+  E.stop(s);
+  assert.equal(E.start(s,B,t+8*E.DAY,'xlinked').familyPedigree,undefined);
+});
