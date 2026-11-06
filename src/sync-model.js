@@ -54,7 +54,31 @@
       else out[k]=mergeObject(base?.[k],local[k],remote[k]);
     }return out;
   }
-function mergeTrial(base,local,remote){if(!local)return clone(remote);if(!remote)return clone(local);const out={version:1,serial:0,cards:{},sessions:[],activeId:null},map=new Map();for(const a of [...remote.sessions,...local.sessions]){const old=map.get(a.id);if(!old){map.set(a.id,clone(a));continue;}const rank=x=>({timed:0,choice:1,untimed:2,review:3}[x.status]||0);const winner=clone(rank(a)>rank(old)||rank(a)===rank(old)&&a.updatedAt>old.updatedAt?a:old);const frozen=old.timedSubmittedAt?old:a.timedSubmittedAt?a:null;if(frozen)for(const k of ['timedAnswers','timedConfidence','results','timedResult','timedSubmittedAt','completedAt','deadline','expired','repeated','startedAt'])winner[k]=clone(frozen[k]);map.set(a.id,winner);}out.sessions=[...map.values()].sort((a,b)=>a.startedAt-b.startedAt);out.serial=Math.max(local.serial||0,remote.serial||0);out.activeId=base&&local.activeId===base.activeId?remote.activeId:local.activeId;return out;}
+function mergeTrial(base,local,remote){
+ if(!local)return clone(remote);if(!remote)return clone(local);
+ const out={version:1,serial:0,cards:{},sessions:[],activeId:null},map=new Map();
+ for(const a of [...remote.sessions,...local.sessions]){
+  const old=map.get(a.id);if(!old){map.set(a.id,clone(a));continue;}
+  const prior=base?.sessions?.find(x=>x.id===a.id);
+  const frozen=old.timedSubmittedAt?old:a.timedSubmittedAt?a:null;
+  if(a.paper!==old.paper){
+   // Never splice answers or results from two papers into one saved attempt.
+   const expectedPaper=prior?.paper||old.paper;
+   const matching=[old,a].filter(x=>x.paper===expectedPaper);
+   const coherent=matching.find(x=>x.timedSubmittedAt)||matching[0]||old;
+   map.set(a.id,clone(coherent));continue;
+  }
+  const rank=x=>({timed:0,choice:1,untimed:2,review:3}[x.status]||0);
+  const winner=clone(rank(a)>rank(old)||rank(a)===rank(old)&&a.updatedAt>old.updatedAt?a:old);
+  const identity=prior||old;
+  for(const k of ['paper','paperTitle','paperOrigin','participant','participantName','startedAt','deadline']){
+   if(identity[k]!==undefined)winner[k]=clone(identity[k]);else delete winner[k];
+  }
+  if(frozen)for(const k of ['timedAnswers','timedConfidence','results','timedResult','timedSubmittedAt','completedAt','expired','repeated'])if(frozen[k]!==undefined)winner[k]=clone(frozen[k]);
+  map.set(a.id,winner);
+ }
+ out.sessions=[...map.values()].sort((a,b)=>a.startedAt-b.startedAt);out.serial=Math.max(local.serial||0,remote.serial||0);out.activeId=base&&local.activeId===base.activeId?remote.activeId:local.activeId;return out;
+}
 
   function merge(module,base,local,remote){
     if(module==='hendrik-imat-trial-v1')return mergeTrial(base,local,remote);

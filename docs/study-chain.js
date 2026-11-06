@@ -30,8 +30,9 @@
   const valid=t=>Number.isFinite(t)&&t>0&&t<=now;
   for(const [index,key] of KEYS.entries()){
    const unique=new Map();
+   const guestIds=new Set(index===4?array(modules[key]?.sessions).filter(s=>s?.participant==='guest').map(s=>s.id):[]);
    for(const s of array(modules[key]?.sessions)){
-    if(!s||typeof s.id!=='string'||!valid(s.completedAt))continue;
+    if(!s||typeof s.id!=='string'||!valid(s.completedAt)||guestIds.has(s.id))continue;
     const meaningful=index===4?!!s.timedSubmittedAt&&(s.timedResult?.correct+s.timedResult?.wrong>0):index===0?typeof s.checkCorrect==='boolean':index===1?typeof s.correct==='boolean':index===2?s.completed===true&&array(s.answers).some(a=>typeof a?.correct==='boolean'):s.status==='submitted'&&(array(s.results).some(r=>typeof r?.correct==='boolean'&&!r.blank)||Object.values(s.texts||{}).some(t=>typeof t==='string'&&t.trim())||s.recorded===true);
     if(!meaningful)continue;
     // One completion per session; later duplicate copies never add another day.
