@@ -26,3 +26,13 @@ study-teachback summary, study-teachback-library summary { cursor: pointer; padd
 .teachback-editor select, .teachback-editor button { min-height: 42px; font: inherit; }
 study-teachback .thought-actions, study-teachback-library .thought-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 study-teachback [hidden], study-teachback-library [hidden] { display: none; }
+
+/* Optional guided study: finite, resumable and easy to leave. */
+.guided-session,.guided-help,.guided-summary{border:1px solid #a8c8bc;border-radius:16px;padding:16px;margin:16px 0;background:#f0f7f3;color:#193c35;overflow-wrap:anywhere}
+.guided-session h2,.guided-help h3,.guided-summary h2{font-size:1.2rem;margin:.2rem 0 .65rem;line-height:1.35}
+.guided-session p,.guided-help p,.guided-summary p{margin:.55rem 0}
+.guided-session button,.guided-help button,.guided-summary button{min-height:44px;max-width:100%;white-space:normal;margin:4px 6px 4px 0;padding:10px 14px;border:1px solid #90b5a6;border-radius:10px;cursor:pointer;font:inherit}
+.guided-session button:focus-visible,.guided-help button:focus-visible,.guided-summary button:focus-visible{outline:3px solid #ce8f23;outline-offset:3px}
+.guided-session small,.guided-help small{display:block;color:#41695d}
+.guided-session [hidden],.guided-help [hidden],.guided-summary [hidden]{display:none}
+@media(max-width:520px){.guided-session,.guided-help,.guided-summary{padding:12px}.guided-session button,.guided-help button,.guided-summary button{font-size:15px}}
