@@ -50,19 +50,19 @@ async function harness({waiting=false,initial=false,installing=false,offline=fal
  vm.createContext(context);await vm.runInContext(SOURCE,context);await tick();
  return {reg,sw,doc,body,win,session,order,navigator:context.navigator,
    get notice(){return body.querySelector('.backup-update-notice');},get reloads(){return reloads;},get installCalls(){return installCalls;},get activateCalls(){return activateCalls;},get flushCalls(){return flushCalls;},
-   findButton(text){return body.querySelectorAll('button').find(node=>node.textContent===text);},
-   async click(text){const node=this.findButton(text);assert.ok(node,'button '+text+' exists');if(node.disabled)return;await node.onclick?.({target:node});node.emit('click');await tick();},
+   findButton(text,scope=body){return scope.querySelectorAll('button').find(node=>node.textContent===text);},
+   async click(text,scope=body){const node=this.findButton(text,scope);assert.ok(node,'button '+text+' exists');if(node.disabled)return;await node.onclick?.({target:node});node.emit('click');await tick();},
    async event(target,type){target.emit(type);await tick();},
    async advance(ms){now+=ms;for(const interval of intervals.values())if(interval.ms<=ms)interval.fn();await tick();},
    async installWaiting(){const worker=new Worker('installing');reg.installing=worker;reg.emit('updatefound');await tick();assert.equal(this.notice?.hidden??true,true,'installing is not ready');reg.waiting=worker;reg.installing=null;worker.setState('installed');await tick();return worker;}
  };
 }
 test('a ready waiting update has a visible nonblocking reminder without auto-activation',async()=>{
- const h=await harness({waiting:true});assert.ok(h.notice);assert.equal(h.notice.hidden,false);assert.match(h.notice.textContent,/Uuendus on valmis/);assert.ok(h.findButton('Uuenda nüüd'));assert.ok(h.findButton('Hiljem'));assert.equal(h.notice.getAttribute('aria-modal'),null);
- assert.equal(h.installCalls,0);assert.equal(h.activateCalls,0);assert.equal(h.reloads,0);assert.equal(h.findButton('Rakenda valmis uuendus').dataset.updateReady,'true');
+ const h=await harness({waiting:true});assert.ok(h.notice);assert.equal(h.notice.hidden,false);assert.match(h.notice.textContent,/Uuendus on valmis/);assert.ok(h.findButton('Uuenda'));assert.ok(h.findButton('Hiljem'));assert.equal(h.notice.getAttribute('aria-modal'),null);
+ assert.equal(h.installCalls,0);assert.equal(h.activateCalls,0);assert.equal(h.reloads,0);assert.equal(h.findButton('Uuenda').dataset.updateReady,'true');
 });
 test('Later hides the reminder but preserves the manual toolbar action and study state',async()=>{
- const h=await harness({waiting:true});await h.click('Hiljem');assert.equal(h.notice.hidden,true);assert.ok(h.findButton('Rakenda valmis uuendus'));assert.equal(h.reloads,0);assert.equal(h.flushCalls,0);
+ const h=await harness({waiting:true});await h.click('Hiljem');assert.equal(h.notice.hidden,true);assert.ok(h.findButton('Uuenda'));assert.equal(h.reloads,0);assert.equal(h.flushCalls,0);
  await h.event(h.win,'online');await h.event(h.doc,'visibilitychange');assert.equal(h.notice.hidden,true,'foreground does not immediately nag after Later');assert.equal(h.activateCalls,0);
  await h.advance(31*60000);assert.equal(h.notice.hidden,false,'a still-ready update can be offered after the dismissal interval');
 });
@@ -88,15 +88,15 @@ test('foreground and reconnect checks are throttled and cannot activate the wait
  const before=h.reg.updateCalls;await h.advance(60000);assert.equal(h.reg.updateCalls,before);await h.advance(16*60000);await h.event(h.doc,'visibilitychange');assert.ok(h.reg.updateCalls>before);assert.equal(h.installCalls,0);assert.equal(h.reloads,0);
 });
 test('Update now preserves the existing flush-before-activation guard',async()=>{
- const h=await harness({waiting:true});await h.click('Uuenda nüüd');assert.equal(h.installCalls,1);assert.equal(h.flushCalls,1);assert.equal(h.activateCalls,1);assert.equal(h.reloads,1);assert.deepEqual(h.order,['flush','activate','reload']);
+ const h=await harness({waiting:true});await h.click('Uuenda',h.notice);assert.equal(h.installCalls,1);assert.equal(h.flushCalls,1);assert.equal(h.activateCalls,1);assert.equal(h.reloads,1);assert.deepEqual(h.order,['flush','activate','reload']);
 });
 test('unsaved or unreadable study data prevents reminder-triggered activation',async()=>{
- for(const state of [{unsaved:true},{corrupt:true}]){const h=await harness({waiting:true,...state});await h.click('Uuenda nüüd');assert.equal(h.flushCalls,1);assert.equal(h.activateCalls,0);assert.equal(h.reloads,0);assert.ok(h.reg.waiting);assert.match(h.body.textContent,/Uuendust ei rakendatud/);}
+ for(const state of [{unsaved:true},{corrupt:true}]){const h=await harness({waiting:true,...state});await h.click('Uuenda',h.notice);assert.equal(h.flushCalls,1);assert.equal(h.activateCalls,0);assert.equal(h.reloads,0);assert.ok(h.reg.waiting);assert.match(h.body.textContent,/Uuendust ei rakendatud/);}
 });
 test('Later works on the current page when session storage is unavailable',async()=>{
  const h=await harness({waiting:true,storageUnavailable:true});await h.click('Hiljem');assert.equal(h.notice.hidden,true);
- await h.event(h.win,'online');await h.advance(60000);assert.equal(h.notice.hidden,true);assert.ok(h.findButton('Rakenda valmis uuendus'));assert.equal(h.activateCalls,0);
- await h.click('Rakenda valmis uuendus');assert.equal(h.activateCalls,1);assert.equal(h.reloads,1);
+ await h.event(h.win,'online');await h.advance(60000);assert.equal(h.notice.hidden,true);assert.ok(h.findButton('Uuenda'));assert.equal(h.activateCalls,0);
+ await h.click('Uuenda');assert.equal(h.activateCalls,1);assert.equal(h.reloads,1);
 });
 test('background checks skip network updates while hidden or offline, then resume on reconnect',async()=>{
  const h=await harness();h.doc.hidden=true;await h.advance(16*60000);await h.event(h.win,'online');assert.equal(h.reg.updateCalls,0);

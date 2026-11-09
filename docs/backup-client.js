@@ -12,7 +12,7 @@
  const heading=document.createElement('h2');heading.textContent=text('Uuendus on valmis','An update is ready');
  const description=document.createElement('p');description.textContent=text('Uuenda, et saada uusim õppesisu ja parandused. Võid ka praegu edasi õppida ning uuendada hiljem.','Update to get the latest study content and fixes. You can also keep studying and update later.');
  const actions=document.createElement('div');actions.className='backup-update-actions';
- const apply=document.createElement('button');apply.type='button';apply.textContent=text('Uuenda nüüd','Update now');
+ const apply=document.createElement('button');apply.type='button';apply.textContent=text('Uuenda','Update');
  const later=document.createElement('button');later.type='button';later.textContent=text('Hiljem','Later');actions.append(apply,later);
  const noticeState=document.createElement('p');noticeState.setAttribute('role','status');notice.append(heading,description,actions,noticeState);bar.insertAdjacentElement('afterend',notice);
  let reg,checking=false,lastCheck=0,laterUntil=0;
@@ -21,10 +21,10 @@
  const observedRegistrations=new WeakSet(),observedWorkers=new WeakSet();
  function refreshReminder(){
   const waiting=!!reg?.waiting&&reg.waiting.state!=='redundant';
-  update.textContent=waiting?text('Rakenda valmis uuendus','Apply ready update'):text('Kontrolli uuendust','Check for an update');
+  update.textContent=waiting?text('Uuenda','Update'):text('Kontrolli uuendust','Check for an update');
   update.setAttribute('data-update-ready',String(waiting));
   const wasHidden=notice.hidden;notice.hidden=!waiting||Date.now()<laterUntil;
-  if(wasHidden&&!notice.hidden)noticeState.textContent=text('Uus õppepakett on alla laaditud ja valmis rakendamiseks.','The new study pack is downloaded and ready to apply.');
+  if(wasHidden&&!notice.hidden)noticeState.textContent=text('Vajuta „Uuenda”, et võtta uus õppesisu kasutusele. Sinu senine töö jääb alles.','Press Update to use the new study content. Your saved work stays safe.');
  }
  function observeRegistration(){
   if(!reg)return;
