@@ -1,7 +1,7 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.BackupModel=api;})(typeof window!=='undefined'?window:globalThis,()=>{
  'use strict';
  const FORMAT='study-pocket-v1',STORE='study-pocket:saved:v1';
- const keys=['hendrik-bio-basics-v1','hendrik-imat-bio-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1'];
+ const keys=['hendrik-bio-basics-v1','hendrik-imat-bio-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1','hendrik-maths-v1','hendrik-physics-v1'];
  const object=x=>x&&typeof x==='object'&&!Array.isArray(x);
  const clone=x=>JSON.parse(JSON.stringify(x));
  function safe(value,depth=0){if(depth>40)throw Error('Backup is too deeply nested');if(typeof value==='number'&&!Number.isFinite(value))throw Error('Invalid number');if(typeof value==='string'&&value.length>500000)throw Error('Text is too long');if(Array.isArray(value)){if(value.length>50000)throw Error('Too many records');for(const x of value)safe(x,depth+1);}else if(object(value)){for(const [k,v]of Object.entries(value)){if(['__proto__','constructor','prototype'].includes(k))throw Error('Invalid field');safe(v,depth+1);}}}

@@ -1,0 +1,34 @@
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+const E=require('../src/quant-engine.js'),M=require('../src/backup-model.js'),S=require('../src/sync-model.js');
+const now=Date.UTC(2026,10,9,12);
+const bank=()=>require('../src/quant-content.js').subjects;
+function finish(s,b,t,correct=true){const a=E.active(s),topic=E.topic(b,a);a.selected=correct?topic.questions[a.questionIndex].answer:(topic.questions[a.questionIndex].answer+1)%4;a.confidence='sure';E.submit(s,b,t);E.beginCheck(s);a.checkSelected=correct?topic.questions[a.checkIndex].answer:(topic.questions[a.checkIndex].answer+1)%4;E.check(s,b,t+1);return a;}
+test('Each subject has four original topics and 24 complete, distinct questions',()=>{
+ for(const b of Object.values(bank())){assert.equal(b.topics.length,4);const ids=new Set(),prompts=new Set();for(const t of b.topics){assert.ok(!ids.has(t.id));ids.add(t.id);assert.equal(t.questions.length,6);assert.ok(t.explanation.length&&t.worked.steps.length&&t.sources.length);for(const q of t.questions){assert.equal(q.options.length,4);assert.equal(new Set(q.options).size,4);assert.ok(Number.isInteger(q.answer)&&q.answer>=0&&q.answer<4);assert.ok(q.explanation&&q.skill);assert.ok(!prompts.has(q.prompt));prompts.add(q.prompt);}for(const l of t.sources)assert.match(l.url,/^https:\/\//);}assert.equal(prompts.size,24);}
+});
+test('Unknown baseline teaches then a wrong check completes; continuation changes topic and never erases work',()=>{
+ for(const b of Object.values(bank())){const s=E.fresh(),a=E.start(s,b,now);assert.equal(E.submit(s,b,now+1),true);assert.equal(a.unknown,true);assert.equal(a.delayedProbe,false);assert.equal(a.stage,'lesson');E.beginCheck(s);a.checkSelected=(E.topic(b,a).questions[a.checkIndex].answer+1)%4;assert.equal(E.check(s,b,now+2),true);assert.equal(a.checkCorrect,false);const copy=structuredClone(a);const next=E.more(s,b,now+3);assert.notEqual(next.concept,a.concept);assert.equal(s.sessions.length,2);assert.deepEqual(s.sessions[0],{...copy,moreChosen:true});}
+});
+test('Help before the first answer is supported, including after reload; never awarded delayed recall',()=>{
+ const b=bank().physics,s=E.fresh(),a=E.start(s,b,now);finish(s,b,now+1);const next=E.start(s,b,now+3*E.DAY,a.concept);E.help(s,now+3*E.DAY+1);const r=E.restore(JSON.stringify(s),b);E.beginCheck(r);const done=finish(r,b,now+3*E.DAY+2);assert.equal(done.assisted,true);assert.equal(done.delayedProbe,false);assert.equal(done.initialProbe,false);
+});
+test('Later eligible unaided retrieval is separate from immediate checks and uses a fresh first question',()=>{
+ const b=bank().maths,s=E.fresh(),a=E.start(s,b,now);finish(s,b,now+1);const next=E.start(s,b,now+2*E.DAY,a.concept);assert.notEqual(next.questionIndex,a.questionIndex);finish(s,b,now+2*E.DAY+1);assert.equal(next.delayedProbe,true);assert.equal(next.assisted,false);assert.ok(s.cards[a.concept].due>next.completedAt+E.DAY);assert.equal(E.check(s,b,now+2*E.DAY+5),false);
+});
+test('Partial selection, explanation and unfinished check survive save/reload and sync conflict merge',()=>{
+ for(const b of Object.values(bank())){const s=E.fresh(),a=E.start(s,b,now);a.selected=0;a.confidence='unsure';let r=E.restore(s,b);assert.equal(E.active(r).selected,0);E.submit(r,b,now+1);E.beginCheck(r);let rr=E.restore(r,b);assert.equal(E.active(rr).stage,'check');assert.equal(E.start(rr,b,now+2).id,a.id);const merged=S.merge(b.key,s,rr,s);assert.equal(E.active(merged).stage,'check');const snap=M.fresh();snap.modules[b.key]=merged;assert.equal(M.parse(JSON.stringify(snap)).modules[b.key].sessions.length,1);}
+});
+test('All first-answer items can be reached without forced same-topic loops; due reviews return across days',()=>{
+ for(const b of Object.values(bank())){const s=E.fresh();let a=E.start(s,b,now),previous=null;for(let i=0;i<16;i++){assert.ok(a);assert.notEqual(a.concept,previous);previous=a.concept;finish(s,b,now+i*10+1);a=E.more(s,b,now+i*10+3);}assert.equal(a,null);assert.equal(s.sessions.length,16);for(const t of b.topics)assert.equal(E.seen(s,t.id).size,4);assert.ok(E.start(s,b,now+2*E.DAY));}
+});
+test('Subject completion earns one calendar day and remains distinct from biology',()=>{
+ const chain=require('../src/study-chain.js'),b=bank().physics,s=E.fresh();E.start(s,b,now);finish(s,b,now+1);const r=chain.summarize({[b.key]:s},now+100);assert.equal(r.total,1);const d=r.dates.values().next().value;assert.equal(d.physics,1);assert.equal(d.biology,0);assert.equal(d.maths,0);
+});
+test('An early open cannot acquire delayed credit simply by being left open; support cannot be lost in merge',()=>{
+ const b=bank().maths,s=E.fresh(),a=E.start(s,b,now);finish(s,b,now+1);const early=E.start(s,b,now+100,a.concept);const base=structuredClone(s);finish(s,b,now+3*E.DAY);assert.equal(early.delayedProbe,false);
+ const x=E.fresh();E.start(x,b,now);const before=structuredClone(x);E.help(x,now+1);let merged=S.merge(b.key,before,x,before);assert.equal(E.active(merged).assisted,true);E.beginCheck(merged);E.active(merged).selected=0;E.active(merged).confidence='sure';E.submit(merged,b,now+2);merged=S.merge(b.key,before,merged,before);assert.equal(E.active(merged).stage,'lesson');assert.ok(E.active(merged).answeredAt);
+});
+function screen(subject='maths',initial=null){const b=bank()[subject];let saved=initial?JSON.stringify(initial):null;const events={},main={innerHTML:'',focus(){},addEventListener:(n,f)=>events[n]=f};const ctx={QuantContent:{subjects:bank()},QuantEngine:E,URLSearchParams,location:{search:'?subject='+subject,hash:''},document:{getElementById:()=>main},StudySync:{storage:{getItem:()=>saved,setItem:(_,v)=>saved=v},subscribe(){}}};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('src/quant.js','utf8'),ctx);return{main,read:()=>JSON.parse(saved),change(name,value){events.change({target:{name,value}})},click(action,topic){events.click({target:{closest:()=>({dataset:{action,topic}})}})},submit(){events.submit({preventDefault(){}})}};}
+test('Rendered learner flow supports help, uncertainty, reload, wrong checks and voluntary continuation',()=>{
+ for(const subject of ['maths','physics']){let h=screen(subject);assert.match(h.main.innerHTML,/Õpin enne vastamist/);h.click('help');assert.match(h.main.innerHTML,/Üks näide/);h.click('check');h.change('choice','0');h.change('confidence','unsure');h.submit();assert.match(h.main.innerHTML,/Proovin teist ülesannet/);h.click('check');h=screen(subject,h.read());assert.equal(E.active(h.read()).stage,'check');h.change('choice','0');h.submit();assert.match(h.main.innerHTML,/Plokk tehtud/);assert.match(h.main.innerHTML,/Tänaseks piisab/);const before=E.active(h.read()).concept;h.click('more');assert.notEqual(E.active(h.read()).concept,before);assert.equal(h.read().sessions.length,2);}
+});

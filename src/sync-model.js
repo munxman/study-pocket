@@ -1,6 +1,6 @@
 'use strict';
 (function(root){
-  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1'];
+  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1','hendrik-maths-v1','hendrik-physics-v1'];
   const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   const object=x=>x&&typeof x==='object'&&!Array.isArray(x);
@@ -15,7 +15,7 @@
     }
     return s;
   }
-  function rank(s){return s?.completedAt||s?.finished||s?.status==='done'?10000+(s?.answers?.length||0):(s?.answers?.length||s?.solo?.length||0)*100+({lesson:0,intro:0,guide:1,question:2,explanation:3,check:4,feedback:3,retry:4,finish:5,reflection:6,done:7}[s?.stage]||0)+(s?.retryAnswers?.length||0);}
+  function rank(s){return s?.completedAt||s?.finished||s?.status==='done'?10000+(s?.answers?.length||0):(s?.kind==='quantitative'?((s.answeredAt?100:0)+(s.assisted?10:0)):0)+(s?.answers?.length||s?.solo?.length||0)*100+({lesson:0,intro:0,guide:1,question:2,explanation:3,check:4,feedback:3,retry:4,finish:5,reflection:6,done:7}[s?.stage]||0)+(s?.retryAnswers?.length||0);}
   function record(base,local,remote){
     if(!local)return clone(remote);if(!remote)return clone(local);
     if(same(local,base))return clone(remote);if(same(remote,base))return clone(local);
@@ -90,7 +90,7 @@ function mergeTrial(base,local,remote){
     base=normalize(module,base);local=normalize(module,local);remote=normalize(module,remote);
     if(!local)return clone(remote);if(!remote)return clone(local);
     const s=mergeObject(base,local,remote);
-    if(module===keys[0]||module===keys[5]){
+    if(module===keys[0]||module===keys[5]||module===keys[9]||module===keys[10]){
       const a=s.sessions.find(a=>a.id===s.activeId);
       if(!a||a.closed)s.activeId=null;
       if(!s.activeId){const open=s.sessions.filter(a=>!a.closed&&a.stage!=='done');s.activeId=open.at(-1)?.id||null;}

@@ -1,4 +1,5 @@
 import { summarizeEnglish } from './ielts-overview.js';
+import { trialParticipantName } from './learning-report.js';
 const DAY=86400000;
 const array=x=>Array.isArray(x)?x:[];
 const unique=xs=>[...new Map(xs.filter(x=>x&&typeof x.id==='string').map(x=>[x.id,x])).values()];
@@ -13,7 +14,7 @@ export function summarize(modules,period='7',now=Date.now()) {
   const touch=(at,n=1)=>{if(inRange(at))activity.set(day(at),(activity.get(day(at))||0)+n);};
   let lastAnswer=0;
   const report={period,since,now,modules:[],other:[],activeDays:0,lastAnswer:0,days:[],timeline:[]};
-  for(const [key,id] of [['hendrik-bio-basics-v1','basics'],['hendrik-imat-bio-v1','imat']]) {
+  for(const [key,id] of [['hendrik-bio-basics-v1','basics'],['hendrik-imat-bio-v1','imat'],['hendrik-maths-v1','maths'],['hendrik-physics-v1','physics']]) {
     const data=modules[key]||{},sessions=unique(array(data.sessions));
     const result={id,...stats(),completed:0,more:0,openedUnanswered:0,unfinished:0,unfinishedDay:0,concepts:[],readingSelfReport:0,supportChecks:0,supportCorrect:0,supportHistory:[]};
     const concepts=new Map();
@@ -40,7 +41,7 @@ export function summarize(modules,period='7',now=Date.now()) {
           target.independent+=independent?1:0;target.independentCorrect+=independent&&a.correct?1:0;
           target.unsure+=!a.unknown&&a.confidence==='unsure'?1:0;target.unknown+=a.unknown?1:0;
           target.sureWrong+=!a.unknown&&!a.correct&&a.confidence==='sure'?1:0;
-          if(a.delayedProbe===true){target.delayed++;target.delayedCorrect+=a.correct?1:0;target.delayedSure+=a.correct&&a.confidence==='sure'?1:0;}
+          if(a.delayedProbe===true&&independent){target.delayed++;target.delayedCorrect+=a.correct?1:0;target.delayedSure+=a.correct&&a.confidence==='sure'?1:0;}
           else if(typeof a.delayedProbe!=='boolean')target.unclassified++;
         }
         c.lastAnswer=Math.max(c.lastAnswer,a.answeredAt);touch(a.answeredAt);
@@ -50,9 +51,9 @@ export function summarize(modules,period='7',now=Date.now()) {
         timeline.push({at:a.answeredAt,module:id,concept:a.concept,correct:a.correct,unknown:!!a.unknown,completed:!!a.completedAt});
       }
       // Count the FIRST immediate check, not the eventually correct retry.
-      const checked=id==='basics'?completion&&typeof a.checkCorrect==='boolean':first&&array(a.retryAnswers).length>0;
+      const checked=id!=='imat'?completion&&typeof a.checkCorrect==='boolean':first&&array(a.retryAnswers).length>0;
       if(checked){
-        const correct=id==='basics'||(a.targetedPractice&&typeof a.checkCorrect==='boolean')?a.checkCorrect:a.retryErrors?.[0]===null&&a.retryAnswers.length===1&&!!a.completedAt;
+        const correct=id!=='imat'||(a.targetedPractice&&typeof a.checkCorrect==='boolean')?a.checkCorrect:a.retryErrors?.[0]===null&&a.retryAnswers.length===1&&!!a.completedAt;
         // For IMAT a failed retry cannot finish the session; a single successful
         // retry does. Repeated retries remain an initial miss even after completion.
         for(const target of [result,c]){target.checks++;target.checkCorrect+=correct?1:0;}
@@ -89,7 +90,9 @@ export function summarize(modules,period='7',now=Date.now()) {
   const nerve=array(modules['hendrik-nerves-feedback-v1']?.firstAnswers).filter(x=>typeof x==='boolean');
   report.nerve={answered:nerve.length,correct:nerve.filter(Boolean).length}; // Lifetime, no reliable answer dates.
   report.english=summarizeEnglish(modules['hendrik-ielts-v1'],since,now);
-  report.trials=unique(array(modules['hendrik-imat-trial-v1']?.sessions)).filter(s=>inRange(s.timedSubmittedAt)).map(s=>({id:s.id,at:s.timedSubmittedAt,paper:s.paper,repeated:!!s.repeated,timed:s.timedResult,untimed:s.secondResult||null}));
+  const trialSummaries=unique(array(modules['hendrik-imat-trial-v1']?.sessions)).filter(s=>inRange(s.timedSubmittedAt)).map(s=>({id:s.id,at:s.timedSubmittedAt,paper:s.paper,paperTitle:typeof s.paperTitle==='string'?s.paperTitle.slice(0,120):null,paperOrigin:typeof s.paperOrigin==='string'?s.paperOrigin.slice(0,40):null,participant:['learner','guest'].includes(s.participant)?s.participant:null,participantName:trialParticipantName(s),repeated:!!s.repeated,timed:s.timedResult,untimed:s.secondResult||null}));
+  report.trials=trialSummaries.filter(s=>s.participant!=='guest');
+  report.guestTrials=trialSummaries.filter(s=>s.participant==='guest');
   report.activeDays=activity.size;report.lastAnswer=lastAnswer;
   report.days=[...activity].sort(([a],[b])=>a.localeCompare(b)).map(([date,answers])=>({date,answers}));
   report.timeline=timeline.sort((a,b)=>b.at-a.at).slice(0,12);
