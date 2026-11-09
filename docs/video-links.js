@@ -46,20 +46,86 @@
   for(const [domain,ids]of Object.entries(extraTargets[video.id]||{}))result[domain]=[...new Set([...(result[domain]||[]),...ids])];
   return result;
  }
- function contextual(bank,domain,concept,session){
-  if(!Number.isFinite(session?.answeredAt)||session.answeredAt<=0||!Number.isInteger(session.questionIndex)||session.questionIndex<0||
-     (session.participant!=null&&session.participant!=='learner')||session.paper||session.kind==='trial'||String(session.id||'').startsWith('trial-')||
-     (session.concept&&session.concept!==concept)||typeof session.correct!=='boolean'||
-     !(session.correct===false||session.confidence==='unsure'))return null;
+ const labels={
+  'bio-chromosome-count':'Kromosoomid ja DNA hulk',
+  'bio-monohybrid-probability':'Pärandumise tõenäosus',
+  'bio-membrane-transport':'Liikumine läbi rakumembraani',
+  'bio-gas-diffusion':'Gaasivahetuse pindala ja paksus',
+  'i12-chem-atomic-structure':'Prootonid, neutronid ja isotoobid',
+  'i12-chem-polarity':'Sidemed ja molekuli polaarsus',
+  'i12-chem-moles-ratios':'Moolid ja reaktsiooni suhted',
+  'i12-chem-molarity':'Lahuse kontsentratsioon',
+  'i12-physics-photon-energy':'Footoni sagedus ja energia',
+  'sat-linear-equation':'Võrrandi lahendamise sammud',
+  'sat-area-volume':'Kujundi pindala ja ruumala'
+ };
+ const validTime=t=>Number.isFinite(t)&&t>0;
+ const attributable=a=>!!a&&(a.participant==null||a.participant==='learner')&&!a.paper&&a.kind!=='trial'&&!String(a.id||'').startsWith('trial-');
+ function mapped(bank,domain,concept,index){
+  if(!Number.isInteger(index)||index<0)return null;
   const candidates=domain==='biology'?(imat[concept]?[imat[concept]]:[]):quantified[domain]?.[concept]||[];
-  const match=candidates.find(x=>x.indices.includes(session.questionIndex));
+  const match=candidates.find(x=>x.indices.includes(index));
   return match?bank.videos.find(v=>v.id===match.video)||null:null;
  }
- function slot(bank,domain,concept,session){const v=contextual(bank,domain,concept,session);return v?'<aside class="video-inline"><p>Kas pilt aitaks seda seost näha?</p><a class="backup-secondary" href="./videos.html?video='+encodeURIComponent(v.id)+'&help=1&from='+encodeURIComponent(domain)+'">Soovi korral: video ja uus näide</a><p class="backup-muted">Valikuline. Praegune vastus jääb alles; võid ka kohe jätkata.</p></aside>':'';}
+ function observation(session,domain,phase='first'){
+  if(!attributable(session))return null;
+  if(phase==='check'){
+   const index=domain==='biology'?session.retryIndex:session.checkIndex;
+   const at=validTime(session.checkAnsweredAt)?session.checkAnsweredAt:session.completedAt;
+   if(!Number.isInteger(index)||!validTime(at)||typeof session.checkCorrect!=='boolean')return null;
+   if(domain==='biology'&&(!Array.isArray(session.retryAnswers)||!session.retryAnswers.length))return null;
+   return {index,at,correct:session.checkCorrect,confidence:null,phase};
+  }
+  if(!Number.isInteger(session.questionIndex)||!validTime(session.answeredAt)||typeof session.correct!=='boolean')return null;
+  return {index:session.questionIndex,at:session.answeredAt,correct:session.correct,confidence:session.confidence,phase};
+ }
+ function contextual(bank,domain,concept,session,phase='first'){
+  const item=observation(session,domain,phase);
+  if(!item||(session.concept&&session.concept!==concept)||!(item.correct===false||phase==='first'&&item.confidence==='unsure'))return null;
+  return mapped(bank,domain,concept,item.index);
+ }
+ const helpHref=(videoId,domain,concept)=>'./videos.html?video='+encodeURIComponent(videoId)+'&help=1&from='+encodeURIComponent(domain)+'&concept='+encodeURIComponent(concept);
+ function slot(bank,domain,concept,session,phase='first'){
+  const v=contextual(bank,domain,concept,session,phase);if(!v)return '';
+  return '<aside class="video-inline"><p>'+esc(phase==='check'?'See rakendus jäi veel keeruliseks. Siia sobib üks videoselgitus.':'Kas pilt aitaks seda seost näha?')+'</p><a class="backup-secondary" href="'+helpHref(v.id,domain,concept)+'">'+esc(labels[v.id]||'Selle mõtte selgitus')+' · video ja uus näide</a><p class="backup-muted">Valikuline. Praegune vastus jääb alles; võid ka kohe jätkata.</p></aside>';
+ }
+ function suggestedHelp(modules,bank,now=Date.now()){
+  if(!validTime(now)||!bank?.videos)return null;
+  const weak=[],success=[];
+  for(const [domain,key]of Object.entries(moduleKeys)){
+   const sessions=modules?.[key]?.sessions;if(!Array.isArray(sessions))continue;
+   const duplicated=new Set(),seen=new Set();
+   for(const a of sessions){if(a?.id&&seen.has(a.id))duplicated.add(a.id);seen.add(a?.id);}
+   for(const a of sessions){
+    if(!a?.id||duplicated.has(a.id)||!attributable(a))continue;
+    for(const phase of ['first','check']){
+     const item=observation(a,domain,phase);if(!item||item.at>now||now-item.at>7*DAY)continue;
+     const v=mapped(bank,domain,a.concept,item.index);if(!v)continue;
+     if(item.correct===false||phase==='first'&&item.confidence==='unsure')weak.push({videoId:v.id,domain,concept:a.concept,evidenceAt:item.at,phase});
+     else if(phase==='first'&&item.correct===true&&item.confidence==='sure'&&a.assisted===false&&a.scaffold!==true&&a.englishHelp!==true)success.push({videoId:v.id,at:item.at});
+    }
+   }
+  }
+  const state=modules?.[KEY];
+  const handled=item=>{
+   if(success.some(x=>x.videoId===item.videoId&&x.at>item.evidenceAt))return true;
+   const times=[];
+   // These operational exposures do not become learning answers or completions.
+   if(state?.cards?.[item.videoId])times.push(state.cards[item.videoId].lastExposure,state.cards[item.videoId].lastAt);
+   for(const a of Array.isArray(state?.sessions)?state.sessions:[])if(a.videoId===item.videoId&&attributable(a)){
+    times.push(a.answeredAt,a.openedAt,a.helpedAt,a.lastExposureAt);
+    for(const x of Array.isArray(a.exposures)?a.exposures:[])times.push(x.at);
+   }
+   return times.some(t=>validTime(t)&&t>=item.evidenceAt&&t<=now);
+  };
+  const item=weak.sort((a,b)=>b.evidenceAt-a.evidenceAt||a.videoId.localeCompare(b.videoId)).find(x=>!handled(x));
+  if(!item)return null;
+  return {videoId:item.videoId,title:(labels[item.videoId]||'Üks keerulisem seos')+' · valikuline video',href:helpHref(item.videoId,item.domain,item.concept),reason:item.phase==='check'?'Hiljutises järelkontrollis jäi see rakendus veel valeks. Võid vaadata üht sobivat selgitust ja proovida uut näidet.':'Hiljutine vastus jäi valeks või ebakindlaks. Siia sobib üks selgitus ja uus näide; vaatamine on sinu valik.',domain:item.domain,concept:item.concept,evidenceAt:item.evidenceAt};
+ }
  function recommendation(modules,bank,now=Date.now()){
   const state=modules[KEY];if(!state)return null;
   const due=bank.videos.filter(v=>state.cards?.[v.id]?.due<=now&&state.cards[v.id].lastAt&&now-Math.max(state.cards[v.id].lastExposure||0,state.cards[v.id].lastAt)>=DAY).sort((a,b)=>state.cards[a.id].due-state.cards[b.id].due)[0];
-  return due?{kind:'video-review',title:'Proovin varasema selgituse mõtet uues ülesandes',href:'./videos.html?video='+encodeURIComponent(due.id)+'&review=1',reason:'Üks küsimus enne abi avamist. Soovi korral vaata selgitust või vali teine aine.'}:null;
+  return due?{kind:'video-review',title:'Proovin varasemat mõtet ilma abita',href:'./videos.html?video='+encodeURIComponent(due.id)+'&review=1',reason:'Üks küsimus enne abi avamist. Soovi korral vaata selgitust või vali teine aine.'}:null;
  }
  // A disclosed video/gist is exposure, including across subject boundaries.
  // Never rewrite an already submitted first answer or create a learner response.
@@ -87,5 +153,5 @@
    for(const a of state.sessions)if(a.videoId===other.id&&!a.answeredAt){a.assisted=true;a.delayedProbe=false;a.delayedEligibleAtStart=false;a.helpedAt=a.helpedAt||now;a.lastExposureAt=Math.max(a.lastExposureAt||0,now);a.exposures.push({kind,at:now});}
   }
  }
- return {KEY,contextual,slot,recommendation,markRelatedExposure,markRelatedVideoExposure,targets};
+ return {KEY,contextual,slot,suggestedHelp,recommendation,markRelatedExposure,markRelatedVideoExposure,targets};
 });
