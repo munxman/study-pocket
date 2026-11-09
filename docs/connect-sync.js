@@ -22,7 +22,7 @@
   busy=true;retry.disabled=true;changed=false;lastAttempt=Date.now();lastError=null;
   try{
    const S=window.BackupStore;if(S.corrupt())throw Error('Storage needs recovery');await S.flush();
-   const remote=await request('/plan-sync');if(remote.format!=='pocket-sync-v1'||!remote.modules)throw Error('Invalid response');
+   const remote=await request('/video-sync');if(remote.format!=='pocket-sync-v1'||!remote.modules)throw Error('Invalid response');
    // Preserve current local edits, including edits made during the network request.
    const values=Object.fromEntries(Object.entries(remote.modules).map(([k,v])=>[k,v.data]));
    await S.receive(values,connection.base||{});if(!S.isSaved()&&Object.keys(values).length)throw Error('Storage unavailable');
@@ -32,7 +32,7 @@
     const local=S.snapshot().modules[key];if(!local||JSON.stringify(local)===JSON.stringify(connection.base[key]))continue;
     // Never upload an initial blank module created by simply opening a page.
     if(!connection.base[key]&&!(local.sessions?.length||Object.keys(local.repairs||{}).length))continue;
-    const sent=window.BackupModel.clone(local),v=await request('/plan-sync','PUT',{module:key,revision:connection.revisions[key]||0,data:sent});
+    const sent=window.BackupModel.clone(local),v=await request('/video-sync','PUT',{module:key,revision:connection.revisions[key]||0,data:sent});
     await S.receive({[key]:v.data},{[key]:sent});connection.base[key]=v.data;connection.revisions[key]=v.revision;reportingPending ||= v.reportingPending;save();
    }
    const latest=S.snapshot().modules,pending=window.BackupModel.keys.some(k=>latest[k]&&JSON.stringify(latest[k])!==JSON.stringify(connection.base[k])&&(latest[k].sessions?.length||Object.keys(latest[k].repairs||{}).length));
@@ -58,7 +58,7 @@
    await sync();
   }else if(invitation){
    retry.hidden=true;say(txt('Ühenda see brauser üks kord. Edaspidi salvestub uus töö automaatselt kontole, kui äpp on internetiga avatud.','Connect this browser once. Afterwards, new work syncs automatically whenever the app is open online.'));
-   const hasWork=window.BackupModel.summary(window.BackupStore.snapshot()).some(r=>r.completed||r.unfinished);
+   const hasWork=window.BackupModel.summary(window.BackupStore.snapshot()).some(r=>r.completed||r.unfinished||r.applications);
    const label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';label.append(check,document.createTextNode(txt(' Selle brauseri senine töö on minu oma; ühenda see varasema ajalooga.',' The existing work in this browser is mine; merge it with my previous history.')));if(hasWork)bar.append(label);
    const pair=document.createElement('button');pair.textContent=txt('Ühendan oma õpiajaloo','Connect my study history');pair.disabled=hasWork;check.onchange=()=>pair.disabled=!check.checked;bar.append(pair);
    pair.onclick=async()=>{pair.disabled=true;try{

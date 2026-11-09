@@ -40,6 +40,16 @@ export function eventsFor(modules,now=Date.now()){
     if(s.completedAt)add(module,s,'completed_block',s.completedAt,{moreChosen:!!s.moreChosen});
     else add(module,s,s.answeredAt?'unfinished':'opened_only',s.answeredAt||s.startedAt,{isStudyEvidence:false},s.answeredAt?'last_known_answer':'device_event');
    }
+  }else if(module==='hendrik-video-practice-v1'){
+   for(const s of unique(list(data.sessions))){
+    const common={videoId:safe(s.videoId),questionId:safe(s.questionId),questionIndex:Number.isInteger(s.questionIndex)?s.questionIndex:null,contentVersion:Number.isSafeInteger(s.contentVersion)?s.contentVersion:null,ordinaryBlockCredit:false,chainCredit:false,masteryCredit:false};
+    // Opening a resource or its application question is operational evidence only.
+    add(module,s,'video_open',s.openedAt||s.startedAt,{...common,openedVideo:!!s.openedAt,isStudyEvidence:false},s.openedAt?'device_event':'question_open');
+    if(typeof s.correct==='boolean'&&s.answeredAt){
+     const independent=s.independent===true&&s.assisted===false;
+     add(module,s,'video_application',s.answeredAt,{...common,correct:s.correct,confidence:safe(s.confidence),initialProbe:bool(s.initialProbe),repeatedQuestion:bool(s.repeatedQuestion),assisted:bool(s.assisted),independent,delayedProbe:s.delayedProbe===true&&independent,delayedEligibleAtStart:bool(s.delayedEligibleAtStart),isStudyEvidence:true});
+    }
+   }
   }else if(module==='hendrik-imat-trial-v1'){
    for(const s of unique(list(data.sessions))){
     // Account ownership does not establish who answered. Older unlabelled trials
@@ -82,8 +92,9 @@ export function eventsFor(modules,now=Date.now()){
 export function dailyReport(events,from,to){
  const days=[];
  for(let t=Date.parse(from);t<=Date.parse(to);t+=86400000){const date=new Date(t).toISOString().slice(0,10),today=events.filter(e=>e.date===date),modules=[];
-  for(const module of [...new Set(today.map(e=>e.module))]){const rows=today.filter(e=>e.module===module&&e.participant!=='guest'),count=k=>rows.filter(e=>e.kind===k).length,answers=rows.filter(e=>['first_answer','scored_answer'].includes(e.kind)&&typeof e.correct==='boolean'),checks=rows.filter(e=>e.kind==='immediate_check'),delayed=answers.filter(e=>e.delayedProbe===true),evidence=rows.filter(e=>e.isStudyEvidence!==false&&['first_answer','scored_answer','saved_response','immediate_check','support_check','completed_block'].includes(e.kind));
-   modules.push({module,completed:count('completed_block'),answers:answers.length,correct:answers.filter(e=>e.correct).length,immediateChecks:checks.length,immediateCorrect:checks.filter(e=>e.correct).length,delayed:delayed.length,delayedCorrect:delayed.filter(e=>e.correct).length,supportChecks:count('support_check'),openedOnly:count('opened_only'),unfinished:count('unfinished'),savedResponses:count('saved_response'),firstActivity:evidence.length?Math.min(...evidence.map(e=>e.at)):null,lastActivity:evidence.length?Math.max(...evidence.map(e=>e.at)):null});
+  for(const module of [...new Set(today.map(e=>e.module))]){const rows=today.filter(e=>e.module===module&&e.participant!=='guest'),count=k=>rows.filter(e=>e.kind===k).length,answers=rows.filter(e=>['first_answer','scored_answer'].includes(e.kind)&&typeof e.correct==='boolean'),checks=rows.filter(e=>e.kind==='immediate_check'),delayed=answers.filter(e=>e.delayedProbe===true),evidence=rows.filter(e=>e.isStudyEvidence!==false&&['first_answer','scored_answer','saved_response','immediate_check','support_check','completed_block','video_application'].includes(e.kind));
+   const videos=rows.filter(e=>e.kind==='video_application'&&typeof e.correct==='boolean'),videoStats=module==='hendrik-video-practice-v1'?{videoApplications:videos.length,videoCorrect:videos.filter(e=>e.correct).length,videoIndependent:videos.filter(e=>e.independent===true).length,videoIndependentCorrect:videos.filter(e=>e.independent===true&&e.correct).length,videoDelayed:videos.filter(e=>e.delayedProbe===true).length,videoDelayedCorrect:videos.filter(e=>e.delayedProbe===true&&e.correct).length,videoOpened:count('video_open')}:{};
+   modules.push({module,completed:count('completed_block'),answers:answers.length,correct:answers.filter(e=>e.correct).length,immediateChecks:checks.length,immediateCorrect:checks.filter(e=>e.correct).length,delayed:delayed.length,delayedCorrect:delayed.filter(e=>e.correct).length,supportChecks:count('support_check'),openedOnly:count('opened_only'),unfinished:count('unfinished'),savedResponses:count('saved_response'),...videoStats,firstActivity:evidence.length?Math.min(...evidence.map(e=>e.at)):null,lastActivity:evidence.length?Math.max(...evidence.map(e=>e.at)):null});
   }
   days.push({date,studyRecorded:modules.some(m=>m.firstActivity!==null),completed:modules.reduce((n,m)=>n+m.completed,0),modules});
  }

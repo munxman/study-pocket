@@ -14,3 +14,10 @@ test('Recent quantitative unfinished work targets that concept; no module is cre
 });
 
 test('Closed and inactive biology attempts cannot recommend an unreachable resume',()=>{const r=T.recommend({'hendrik-imat-bio-v1':{activeId:'current',sessions:[{id:'old',concept:'kidney',answeredAt:now-1,stage:'retry'},{id:'current',concept:'enzyme',stage:'question',startedAt:now-2}]}},null,now);assert.equal(r.kind,'start');});
+test('Only one optional suggestion appears and unfinished work wins over a video review',()=>{
+ const video={kind:'video-review',title:'One review',href:'./videos.html?video=bio-gas-diffusion&review=1'},bridge={title:'Bridge',href:'./quant.html?subject=maths'};
+ assert.deepEqual(T.recommend({},bridge,now,video),video);
+ const modules={'hendrik-imat-bio-v1':{activeId:'unfinished',sessions:[{id:'unfinished',concept:'division',stage:'retry',answeredAt:now-10}]}};
+ assert.equal(T.recommend(modules,bridge,now,video).kind,'resume');
+ assert.equal(T.recommend({},bridge,now,null).kind,'bridge');
+});

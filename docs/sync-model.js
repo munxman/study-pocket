@@ -1,6 +1,6 @@
 'use strict';
 (function(root){
-  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1','hendrik-maths-v1','hendrik-physics-v1','hendrik-chemistry-v1'];
+  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1','hendrik-maths-v1','hendrik-physics-v1','hendrik-chemistry-v1','hendrik-video-practice-v1'];
   const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   const object=x=>x&&typeof x==='object'&&!Array.isArray(x);
@@ -80,7 +80,37 @@ function mergeTrial(base,local,remote){
  out.sessions=[...map.values()].sort((a,b)=>a.startedAt-b.startedAt);out.serial=Math.max(local.serial||0,remote.serial||0);out.activeId=base&&local.activeId===base.activeId?remote.activeId:local.activeId;return out;
 }
 
+function mergeVideo(base,local,remote){
+ if(!local)return clone(remote);if(!remote)return clone(local);
+ const out=mergeObject(base,{...local,sessions:[]},{...remote,sessions:[]}),map=new Map();
+ for(const incoming of [...remote.sessions,...local.sessions]){
+  const old=map.get(incoming.id);if(!old){map.set(incoming.id,clone(incoming));continue;}
+  // An ID denotes one immutable video/question. Never splice another question's
+  // answer into it, including when merging an old offline device or backup.
+  const prior=base?.sessions?.find(s=>s.id===incoming.id)||old;
+  const sameIdentity=s=>s.videoId===prior.videoId&&s.questionId===prior.questionId&&s.questionIndex===prior.questionIndex;
+  const candidates=[old,incoming].filter(sameIdentity);
+  if(!candidates.length){map.set(incoming.id,clone(prior));continue;}
+  candidates.sort((a,b)=>Number(!!b.answeredAt)-Number(!!a.answeredAt)||(a.answeredAt&&b.answeredAt?a.answeredAt-b.answeredAt:Math.max(b.helpedAt||0,b.openedAt||0,b.startedAt||0)-Math.max(a.helpedAt||0,a.openedAt||0,a.startedAt||0))||JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  const winner=candidates.length===2&&!candidates.some(s=>s.answeredAt)?mergeObject(prior,incoming,old):clone(candidates[0]);
+  winner.exposures=[...new Map(candidates.flatMap(s=>s.exposures||[]).map(e=>[e.kind+':'+e.at,clone(e)])).values()].sort((a,b)=>a.at-b.at||a.kind.localeCompare(b.kind));
+  winner.lastExposureAt=Math.max(...candidates.map(s=>s.lastExposureAt||0));
+  // A help exposure before an answer remains support after reconnection. An
+  // opening after the saved answer cannot retrospectively change that answer.
+  const helps=candidates.map(s=>s.helpedAt).filter(t=>Number.isFinite(t)&&t>0&&(!winner.answeredAt||t<=winner.answeredAt));
+  if(helps.length){winner.helpedAt=Math.min(...helps);winner.assisted=true;winner.independent=false;winner.delayedProbe=false;}
+  const opens=candidates.map(s=>s.openedAt).filter(t=>Number.isFinite(t)&&t>0);if(opens.length)winner.openedAt=Math.min(...opens);
+  map.set(incoming.id,winner);
+ }
+ out.sessions=[...map.values()].sort((a,b)=>a.startedAt-b.startedAt||String(a.id).localeCompare(String(b.id)));
+ const active=out.sessions.find(s=>s.id===out.activeId);
+ if(!active)out.activeId=null;
+ if(!out.activeId)out.activeId=out.sessions.filter(s=>s.stage==='question').at(-1)?.id||null;
+ return out;
+}
+
   function merge(module,base,local,remote){
+    if(module==='hendrik-video-practice-v1')return mergeVideo(base,local,remote);
     if(module==='hendrik-imat-trial-v1')return mergeTrial(base,local,remote);
     if(module==='hendrik-study-chain-v1'){
       const repairs={};for(const x of [remote,local])for(const [d,t] of Object.entries(x?.repairs||{}))if(/^\d{4}-\d{2}-\d{2}$/.test(d)&&Number.isFinite(t)&&t>0)repairs[d]=Math.min(repairs[d]||Infinity,t);

@@ -90,6 +90,12 @@ export function summarize(modules,period='7',now=Date.now()) {
   const nerve=array(modules['hendrik-nerves-feedback-v1']?.firstAnswers).filter(x=>typeof x==='boolean');
   report.nerve={answered:nerve.length,correct:nerve.filter(Boolean).length}; // Lifetime, no reliable answer dates.
   report.english=summarizeEnglish(modules['hendrik-ielts-v1'],since,now);
+  const videoSessions=unique(array(modules['hendrik-video-practice-v1']?.sessions));
+  const videoAnswers=videoSessions.filter(s=>inRange(s.answeredAt)&&typeof s.correct==='boolean');
+  const independentVideo=s=>s.independent===true&&s.assisted===false;
+  const videoDays=new Set(videoAnswers.map(s=>day(s.answeredAt)));
+  report.videoPractice={applications:videoAnswers.length,correct:videoAnswers.filter(s=>s.correct).length,independent:videoAnswers.filter(independentVideo).length,independentCorrect:videoAnswers.filter(s=>independentVideo(s)&&s.correct).length,delayed:videoAnswers.filter(s=>independentVideo(s)&&s.delayedProbe===true).length,delayedCorrect:videoAnswers.filter(s=>independentVideo(s)&&s.delayedProbe===true&&s.correct).length,firstSeen:videoAnswers.filter(s=>s.repeatedQuestion===false).length,repeated:videoAnswers.filter(s=>s.repeatedQuestion===true).length,unsure:videoAnswers.filter(s=>s.confidence==='unsure').length,sureWrong:videoAnswers.filter(s=>s.confidence==='sure'&&!s.correct).length,opened:videoSessions.filter(s=>inRange(s.openedAt||s.startedAt)).length,unfinished:videoSessions.filter(s=>!s.answeredAt&&inRange(s.startedAt)).length,activeDays:videoDays.size,days:[...videoDays].sort(),completed:0,ordinaryBlockCredit:false,chainCredit:false,masteryCredit:false};
+  for(const s of videoAnswers){touch(s.answeredAt);lastAnswer=Math.max(lastAnswer,s.answeredAt);}
   const trialSummaries=unique(array(modules['hendrik-imat-trial-v1']?.sessions)).filter(s=>inRange(s.timedSubmittedAt)).map(s=>({id:s.id,at:s.timedSubmittedAt,paper:s.paper,paperTitle:typeof s.paperTitle==='string'?s.paperTitle.slice(0,120):null,paperOrigin:typeof s.paperOrigin==='string'?s.paperOrigin.slice(0,40):null,participant:['learner','guest'].includes(s.participant)?s.participant:null,participantName:trialParticipantName(s),repeated:!!s.repeated,timed:s.timedResult,untimed:s.secondResult||null}));
   report.trials=trialSummaries.filter(s=>s.participant!=='guest');
   report.guestTrials=trialSummaries.filter(s=>s.participant==='guest');
