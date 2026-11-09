@@ -33,7 +33,7 @@ export function eventsFor(modules,now=Date.now()){
     else if(!s.answeredAt)add(module,s,'opened_only',s.startedAt,{isStudyEvidence:false});
     else add(module,s,'unfinished',s.answeredAt,{isStudyEvidence:false},'last_known_answer');
    }
-   }else if(['hendrik-maths-v1','hendrik-physics-v1'].includes(module)){
+   }else if(['hendrik-maths-v1','hendrik-physics-v1','hendrik-chemistry-v1'].includes(module)){
    for(const s of unique(list(data.sessions))){
     if(typeof s.correct==='boolean')add(module,s,'first_answer',s.answeredAt,{correct:s.correct,confidence:safe(s.confidence),unknown:!!s.unknown,questionIndex:Number.isInteger(s.questionIndex)?s.questionIndex:null,initialProbe:bool(s.initialProbe),delayedProbe:s.delayedProbe===true&&!s.assisted,independent:!s.assisted,repeatedQuestion:bool(s.repeatedQuestion),contentVersion:s.contentVersion||null});
     if(typeof s.checkCorrect==='boolean')add(module,s,'immediate_check',s.checkAnsweredAt||s.completedAt,{correct:s.checkCorrect,questionIndex:Number.isInteger(s.checkIndex)?s.checkIndex:null,independent:false},s.checkAnsweredAt?'device_event':'session_completion_proxy');

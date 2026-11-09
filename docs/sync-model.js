@@ -1,6 +1,6 @@
 'use strict';
 (function(root){
-  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1','hendrik-maths-v1','hendrik-physics-v1'];
+  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1','hendrik-maths-v1','hendrik-physics-v1','hendrik-chemistry-v1'];
   const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   const object=x=>x&&typeof x==='object'&&!Array.isArray(x);

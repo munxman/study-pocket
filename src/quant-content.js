@@ -124,7 +124,121 @@
               {prompt: 'Kotis on 2 punast ja 1 sinine kuul. Võetakse juhuslikult kaks kuuli ilma tagasipanekuta. Kui suur on kahe punase tõenäosus?', options: ['4/9', '2/3', '1/3', '1/2'], answer: 2, explanation: 'Esimene punane: 2/3. Pärast seda on üks punane kahe kuuli hulgas: 1/2. Korrutis on 2/3 × 1/2 = 1/3, mitte 2/3 × 2/3.', skill: 'dependent_events'},
               {prompt: 'Ülesande mudelis on tütre sünni tõenäosus 1/2 ja tunnuse esinemise tõenäosus 1/4. Ülesanne ütleb, et need sündmused on sõltumatud. Kui suur on tõenäosus saada tütar, kellel tunnus esineb?', options: ['1/4', '1/8', '3/4', '1/2'], answer: 1, explanation: 'Küsitakse mõlemat sündmust korraga. Antud sõltumatuse eeldusel: 1/2 × 1/4 = 1/8. Ainult tütarde hulgas oleks tunnuse tõenäosus 1/4.', skill: 'joint_vs_conditional'}
             ]
-          }
+          },
+{
+  "id": "plane_geometry",
+  "title": "Tasandilised kujundid: küljed, nurgad ja pindala",
+  "english": "Plane geometry: perimeter, area, angles and right triangles",
+  "why": "Üks väike võimalus proovida geomeetria alustalasid. Joonista soovi korral ise lihtne skeem ja märgi antud suurused; selgituse võid avada ka enne vastamist.",
+  "explanation": [
+    "Ümbermõõt P (perimeter) on kujundi piirjoone pikkus: liida kõigi külgede pikkused. Pindala A (area) kirjeldab kujundi sisse jääva pinna suurust. Ristküliku (rectangle) külgedega a ja b on P = 2(a + b) ning A = a × b. Pikkuse ühik võib olla cm, pindala ühik aga cm².",
+    "Rööpküliku (parallelogram) pindala on A = b × h. Kõrgus h (perpendicular height) mõõdetakse valitud alusega b risti; kaldkülg ei ole üldjuhul kõrgus. Sama aluse ja kõrgusega kolmnurga (triangle) pindala on pool sellest: A = b × h / 2.",
+    "Kolmnurga sisenurkade summa on 180°. Kumera n-nurga (convex polygon) saab ühest tipust jagada n − 2 kolmnurgaks, seega tema sisenurkade summa on (n − 2) × 180°. Nelinurgal on summa 360°. Korrapärase hulknurga (regular polygon) kõik sisenurgad on võrdsed: ühe nurga leidmiseks jaga summa n-ga. Tavalise ebakorrapärase hulknurga nurgad ei pea olema võrdsed.",
+    "Täisnurkses kolmnurgas (right triangle) on täisnurga vastaskülg hüpotenuus c (hypotenuse). Kahe kaateti a ja b (legs) ning hüpotenuusi seos on a² + b² = c². Hüpotenuusi pikkuse saamiseks võta summast ruutjuur. Pythagorase teoreemi ei tohi kasutada suvalise kolmnurga külgede kohta."
+  ],
+  "worked": {
+    "prompt": "Ristkülikukujulise kaardi küljed on 6 cm ja 4 cm. Leia eraldi ümbermõõt ja pindala.",
+    "steps": [
+      "Ümbermõõt käib mööda kaardi nelja serva: P = 6 + 4 + 6 + 4 = 20 cm.",
+      "Pindala katab kaardi sisemuse: A = 6 × 4 = 24 cm².",
+      "Kontrolli ühikuid: serva pikkus on sentimeetrites, kaetud pind ruutsentimeetrites. Need on kaks erinevat suurust."
+    ],
+    "answer": "Ümbermõõt on 20 cm ja pindala 24 cm²."
+  },
+  "sources": [
+    {
+      "title": "Opiq: hulknurgad ja rööpküliku pindala (sisukord; peatükid võivad vajada tellimust)",
+      "url": "https://www.opiq.ee/Kit/Details/524",
+      "note": "Soovi korral vali 5.3 või 5.5. Vaata üht selgitust, sule see ja joonista oma näide koos nurkade või ristuva kõrgusega."
+    },
+    {
+      "title": "OpenStax Prealgebra 2e: Rectangles, Triangles and Trapezoids",
+      "url": "https://openstax.org/books/prealgebra-2e/pages/9-4-use-properties-of-rectangles-triangles-and-trapezoids"
+    },
+    {
+      "title": "OpenStax Prealgebra 2e: Angles, Triangles and the Pythagorean Theorem",
+      "url": "https://openstax.org/books/prealgebra-2e/pages/9-3-use-properties-of-angles-triangles-and-the-pythagorean-theorem"
+    },
+    {
+      "title": "OpenStax Contemporary Mathematics: Polygons, Perimeter and Circumference",
+      "url": "https://openstax.org/books/contemporary-mathematics/pages/10-4-polygons-perimeter-and-circumference"
+    }
+  ],
+  "questions": [
+    {
+      "prompt": "Ristküliku küljed on 7 cm ja 4 cm. Milline paar annab õigesti ümbermõõdu P ja pindala A?",
+      "options": [
+        "P = 11 cm; A = 28 cm²",
+        "P = 22 cm; A = 28 cm²",
+        "P = 28 cm; A = 22 cm²",
+        "P = 22 cm; A = 11 cm²"
+      ],
+      "answer": 1,
+      "explanation": "Ümbermõõt on kõigi nelja külje summa: P = 2 × (7 + 4) = 22 cm. Pindala on A = 7 × 4 = 28 cm². Ümbermõõdu ja pindala ühikud on erinevad.",
+      "skill": "rectangle_perimeter_area"
+    },
+    {
+      "prompt": "Kumera nelinurga kolm sisenurka on 80°, 95° ja 110°. Kui suur on neljas sisenurk?",
+      "options": [
+        "65°",
+        "95°",
+        "75°",
+        "105°"
+      ],
+      "answer": 2,
+      "explanation": "Nelinurga sisenurkade summa on 360°. Antud nurkade summa on 80 + 95 + 110 = 285°. Puuduv nurk on 360 − 285 = 75°.",
+      "skill": "quadrilateral_missing_angle"
+    },
+    {
+      "prompt": "Ristküliku pikkus on 5 cm ja laius 3 cm. Kasuta pindala seost A = pikkus × laius. Kui suur on pindala?",
+      "options": [
+        "15 cm²",
+        "8 cm²",
+        "16 cm²",
+        "15 cm"
+      ],
+      "answer": 0,
+      "explanation": "A = 5 cm × 3 cm = 15 cm². Korrutame kaks pikkust, seega vastus on pindalaühikus cm². Arv 16 cm oleks selle ristküliku ümbermõõt.",
+      "skill": "rectangle_area_supported"
+    },
+    {
+      "prompt": "Rööpküliku alus on 9 cm, sellele alusele risti mõõdetud kõrgus 4 cm ja kaldkülg 5 cm. Kui suur on rööpküliku pindala?",
+      "options": [
+        "45 cm²",
+        "18 cm²",
+        "28 cm²",
+        "36 cm²"
+      ],
+      "answer": 3,
+      "explanation": "Pindala jaoks korruta alus ristuva kõrgusega: A = 9 × 4 = 36 cm². Kaldkülge 5 cm selles valemis kõrguse asemel ei kasutata. Poolitamine annaks sama aluse ja kõrgusega kolmnurga pindala.",
+      "skill": "parallelogram_perpendicular_height"
+    },
+    {
+      "prompt": "Ristkülikukujulise plaadi küljed on 6 cm ja 8 cm. Kui pikk on ühest nurgast vastasnurka tõmmatud diagonaal?",
+      "options": [
+        "14 cm",
+        "100 cm",
+        "10 cm",
+        "48 cm"
+      ],
+      "answer": 2,
+      "explanation": "Diagonaal moodustab külgedega täisnurkse kolmnurga. d² = 6² + 8² = 36 + 64 = 100 cm², seega d = √100 = 10 cm. Arv 100 kirjeldab siin pikkuse ruutu, mitte pikkust.",
+      "skill": "pythagorean_diagonal_transfer"
+    },
+    {
+      "prompt": "Korrapärase viisnurga kõik sisenurgad on võrdsed. Kui suur on üks sisenurk?",
+      "options": [
+        "72°",
+        "108°",
+        "120°",
+        "540°"
+      ],
+      "answer": 1,
+      "explanation": "Viisnurga sisenurkade summa on (5 − 2) × 180° = 540°. Korrapärase viisnurga viis nurka on võrdsed, seega üks nurk on 540° / 5 = 108°. 72° oleks selle kujundi välisnurk, mitte küsitud sisenurk.",
+      "skill": "regular_polygon_angle_transfer"
+    }
+  ]
+}
         ]
       },
       physics: {
@@ -235,6 +349,41 @@
               {prompt: 'Oomilise takisti takistus on püsival temperatuuril 3 oomi ja pinge 6 V. Leia voolutugevus.', options: ['18 A', '0,5 A', '2 A', '9 A'], answer: 2, explanation: 'I = U / R = 6 V / 3 oomi = 2 A. Ülesandes on antud Ohmi seaduse kasutamiseks sobiv mudel.', skill: 'ohms_law'},
               {prompt: 'Sama oomilise takisti pinge tõuseb 4 V-lt 12 V-le. Takistus ja temperatuur ei muutu. Kuidas muutub voolutugevus?', options: ['Väheneb kolmandikuni.', 'Ei muutu.', 'Suureneb üheksa korda.', 'Suureneb kolm korda.'], answer: 3, explanation: 'I = U / R. Pinge suureneb kolm korda ja R püsib sama, seega suureneb voolutugevus kolm korda.', skill: 'voltage_current_scaling'},
               {prompt: 'Rakumembraani avatud kanalis liiguvad naatriumioonid Na+. Milline väide on õige?', options: ['Elektrivoolu pole, sest voolu saavad kanda ainult elektronid.', 'Laetud ioonide liikumine võib kanda elektrivoolu.', 'Pinge ja voolutugevus on selles kanalis sama suurus.', 'Ioonide liikumist ei saa kontsentratsioonide erinevus mõjutada.'], answer: 1, explanation: 'Elektrivool on laengukandjate suunatud liikumine; kandjad võivad olla ka ioonid. Nende liikumist rakus mõjutavad nii elektriline mõju kui kontsentratsioonide erinevus.', skill: 'ionic_current_transfer'}
+            ]
+          },
+          {
+            id: 'atomic_photons',
+            title: 'Aatom ja footon: valem sammhaaval',
+            english: 'Quantum atomic model, photon energy and units',
+            why: 'Seome suuruse, ühiku ja füüsikalise tähenduse. See on üks väike algusteema aatomifüüsikast, mitte kogu kursus. Võid avada selgituse enne vastamist.',
+            explanation: [
+              'Tänapäevane aatomimudel kirjeldab elektroni leidmise tõenäosusjaotust. Orbitaal ei ole kindel ringrada ümber tuuma. Seotud elektroni lubatud energiatasemed on diskreetsed; aatomi üleminekul kõrgemalt energiatasemelt madalamale võib kiirguda footon energiaga, mis võrdub tasemete vahega.',
+              'Footon on elektromagnetkiirguse kvant. Ühe footoni energia E = h × f, kus f on sagedus hertsides (Hz = 1/s) ja h on Plancki konstant. Kasutame siin arvutustes ümardust h = 6,6 × 10⁻³⁴ J·s. Ühikukontroll: J·s × 1/s = J. Suurem sagedus tähendab suuremat ühe footoni energiat.',
+              'Vaakumis c = f × λ, kus c = 3,0 × 10⁸ m/s ja λ on lainepikkus meetrites. Seega f = c / λ ja E = h × c / λ. Pikem lainepikkus tähendab väiksemat footoni energiat. Enne asendamist teisenda ühikud: 1 nm = 10⁻⁹ m, näiteks 600 nm = 6,0 × 10⁻⁷ m.',
+              'Kirjuta antud suurused koos ühikutega, vali otsitavale suurusele sobiv valem, asenda arvud ja kontrolli ühikut. Arvuta arvkordajad ja kümne astmed eraldi. Kui aatom kiirgab tasemete energiavahe ΔE suuruse footoni, siis ΔE = h × f ning f = ΔE / h. See ei tähenda, et elektroni tee oleks klassikaline ringorbiit.'
+            ],
+            worked: {
+              prompt: 'Valguse lainepikkus vaakumis on 600 nm. Leia ühe footoni energia. Kasuta c = 3,0 × 10⁸ m/s ja h = 6,6 × 10⁻³⁴ J·s.',
+              steps: [
+                'Teisenda: λ = 600 × 10⁻⁹ m = 6,0 × 10⁻⁷ m.',
+                'Leia sagedus: f = c / λ = (3,0 × 10⁸) / (6,0 × 10⁻⁷) = 0,5 × 10¹⁵ Hz = 5,0 × 10¹⁴ Hz.',
+                'Leia energia: E = h × f = (6,6 × 10⁻³⁴) × (5,0 × 10¹⁴) = 33 × 10⁻²⁰ J = 3,3 × 10⁻¹⁹ J.',
+                'Kontrolli tähendust ja ühikut: vastus on ühe footoni energia džaulides. Kahekordse lainepikkuse korral oleks ühe footoni energia poole väiksem.'
+              ],
+              answer: 'Ühe footoni energia on ligikaudu 3,3 × 10⁻¹⁹ J.'
+            },
+            sources: [
+              {title: 'OpenStax College Physics 2e: The Photoelectric Effect — footoni energia ja lainepikkus', url: 'https://openstax.org/books/college-physics-2e/pages/29-2-the-photoelectric-effect'},
+              {title: 'OpenStax Chemistry 2e: Development of Quantum Theory — orbitaal ja tõenäosus', url: 'https://openstax.org/books/chemistry-2e/pages/6-3-development-of-quantum-theory'},
+              {title: 'Opiq: Bohri aatomiehituse mudel — mudelite võrdlus (lisalugemine)', url: 'https://www.opiq.ee/kit/575/chapter/31962'}
+            ],
+            questions: [
+              {prompt: 'Footoni energia arvutamiseks tahad kasutada c väärtust ühikus m/s. Lainepikkus on 450 nm. Milline on sama lainepikkus meetrites? 1 nm = 10⁻⁹ m.', options: ['4,5 × 10⁻⁹ m', '4,5 × 10⁻⁷ m', '4,5 × 10⁷ m', '4,5 × 10⁻⁶ m'], answer: 1, explanation: '450 nm = 450 × 10⁻⁹ m = 4,5 × 10⁻⁷ m. Arv muutub ühikuga koos, tegelik lainepikkus jääb samaks.', skill: 'photon_nm_to_metre'},
+              {prompt: 'Milline kirjeldus sobib tänapäevase kvantmehaanilise aatomimudeliga?', options: ['Iga elektron peab liikuma mööda kindlat klassikalist ringorbiiti.', 'Orbitaal on koht aatomituumas, kus elektron alati paigal seisab.', 'Mudeli järgi puuduvad aatomil lubatud energiatasemed.', 'Mudel annab elektroni leidmise tõenäosusjaotuse, mitte kindla klassikalise ringraja.'], answer: 3, explanation: 'Orbitaal kirjeldab elektroni kvantolekut ja sellest saab leida asukoha tõenäosusjaotuse. See ei ole Bohri mudeli kindel ringorbiit. Seotud elektroni lubatud energiatasemed on diskreetsed.', skill: 'orbital_probability_model'},
+              {prompt: 'Ühe footoni sagedus on 3,0 × 10¹⁴ Hz. Kasuta E = h × f ja h = 6,6 × 10⁻³⁴ J·s. Milline on selle footoni energia?', options: ['1,98 × 10⁻¹⁹ J', '1,98 × 10⁻⁴⁷ J', '2,2 × 10⁻⁴⁸ J', '1,98 × 10¹⁹ J'], answer: 0, explanation: 'E = 6,6 × 3,0 × 10⁻³⁴⁺¹⁴ J = 19,8 × 10⁻²⁰ J = 1,98 × 10⁻¹⁹ J. Sagedusega korrutatakse; astendajad liidetakse. J·s × Hz = J.', skill: 'photon_energy_from_frequency'},
+              {prompt: 'Valguse lainepikkus vaakumis on 400 nm. Leia ühe footoni energia, kasutades E = h × c / λ, h = 6,6 × 10⁻³⁴ J·s ja c = 3,0 × 10⁸ m/s. 1 nm = 10⁻⁹ m.', options: ['4,95 × 10⁻²⁸ J', '1,65 × 10⁻¹⁹ J', '4,95 × 10⁻¹⁹ J', '7,92 × 10⁻³² J'], answer: 2, explanation: 'λ = 4,0 × 10⁻⁷ m. E = (6,6 × 10⁻³⁴ × 3,0 × 10⁸) / (4,0 × 10⁻⁷) J = 4,95 × 10⁻¹⁹ J. Jagamine nanomeetrite arvu 400-ga ilma ühikute teisenduseta annaks vale suurusjärgu.', skill: 'photon_energy_from_wavelength'},
+              {prompt: 'Võrdled vaakumis kiirguvaid 300 nm ja 600 nm lainepikkusega footoneid. Kasuta E = h × c / λ. Kuidas võrdub ühe 600 nm footoni energia ühe 300 nm footoni energiaga?', options: ['See on kaks korda suurem.', 'See on sama suur.', 'See on neli korda suurem.', 'See on poole väiksem.'], answer: 3, explanation: 'Lainepikkus kahekordistub ja h ning c ei muutu. Energia on lainepikkusega pöördvõrdeline: E₆₀₀ / E₃₀₀ = 300 / 600 = 1/2. Võrdlus käib ühe footoni energia, mitte valgusallika koguvõimsuse kohta.', skill: 'photon_wavelength_energy_ratio'},
+              {prompt: 'Aatom läheb kõrgemalt energiatasemelt madalamale ja kiirgab ühe footoni. Tasemete energiavahe on 3,96 × 10⁻¹⁹ J. Leia footoni sagedus seosest ΔE = h × f, kui h = 6,6 × 10⁻³⁴ J·s.', options: ['2,61 × 10⁻⁵² Hz', '6,0 × 10¹⁴ Hz', '1,67 × 10⁻¹⁵ Hz', '6,0 × 10⁻¹⁴ Hz'], answer: 1, explanation: 'Kiiratav footon viib ära tasemete energiavahe. f = ΔE / h = (3,96 / 6,6) × 10⁻¹⁹⁺³⁴ Hz = 0,6 × 10¹⁵ Hz = 6,0 × 10¹⁴ Hz. Energia jagatakse Plancki konstandiga; J / (J·s) = 1/s = Hz.', skill: 'atomic_transition_frequency'}
             ]
           }
         ]

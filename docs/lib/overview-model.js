@@ -14,7 +14,7 @@ export function summarize(modules,period='7',now=Date.now()) {
   const touch=(at,n=1)=>{if(inRange(at))activity.set(day(at),(activity.get(day(at))||0)+n);};
   let lastAnswer=0;
   const report={period,since,now,modules:[],other:[],activeDays:0,lastAnswer:0,days:[],timeline:[]};
-  for(const [key,id] of [['hendrik-bio-basics-v1','basics'],['hendrik-imat-bio-v1','imat'],['hendrik-maths-v1','maths'],['hendrik-physics-v1','physics']]) {
+  for(const [key,id] of [['hendrik-bio-basics-v1','basics'],['hendrik-imat-bio-v1','imat'],['hendrik-maths-v1','maths'],['hendrik-physics-v1','physics'],['hendrik-chemistry-v1','chemistry']]) {
     const data=modules[key]||{},sessions=unique(array(data.sessions));
     const result={id,...stats(),completed:0,more:0,openedUnanswered:0,unfinished:0,unfinishedDay:0,concepts:[],readingSelfReport:0,supportChecks:0,supportCorrect:0,supportHistory:[]};
     const concepts=new Map();

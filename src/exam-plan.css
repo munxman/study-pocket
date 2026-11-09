@@ -1,0 +1,20 @@
+.exam-plan-eyebrow{font-size:.85rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#42685c}
+.exam-plan-source{display:block;margin:.6rem 0;color:#55766b;overflow-wrap:anywhere}
+.exam-plan-source a,.exam-plan-coverage a{color:#126b62;text-underline-offset:3px}
+.exam-plan-badge{display:inline-block;border:1px solid #b8c9c0;background:#eef5f1;border-radius:8px;padding:2px 8px;font-size:.8rem;line-height:1.5;white-space:normal}
+.exam-plan-badge[data-status=planning],.exam-plan-badge[data-status=awaiting],.exam-plan-badge[data-status=previous-year]{background:#fff8e9;border-color:#d5c292;color:#675019}
+.exam-plan-date-title{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.exam-plan-dates,.exam-plan-coverage{list-style:none;padding:0}
+.exam-plan-dates>li,.exam-plan-coverage>li{padding:14px 0;border-bottom:1px solid #d4e1dc;margin:0}
+.exam-plan-dates>li:last-child,.exam-plan-coverage>li:last-child{border:0}
+.exam-plan-dates p,.exam-plan-coverage p{margin:.4rem 0}
+.exam-plan-date{font-weight:650}
+.exam-plan-coverage h3{font-size:1.05rem;line-height:1.5;margin:.4rem 0}
+.exam-plan-source,.exam-plan-dates small{font-size:.8rem}
+.exam-plan-page summary{padding:8px 0;min-height:28px;font-weight:600}
+.exam-plan-page summary:focus-visible{outline:3px solid #ce8f23;outline-offset:3px}
+.exam-plan-page caption{text-align:left;margin:14px 0 6px;font-size:.85rem;color:#55766b}
+.exam-plan-page main{overflow-wrap:anywhere}
+.exam-plan-skip{position:absolute;left:-9999px}
+.exam-plan-skip:focus{left:14px;top:8px;background:#fff;padding:12px;z-index:10;color:#174b3c}
+@media(max-width:520px){.exam-plan-page h2{font-size:22px}.exam-plan-dates>li{padding:12px 0}}
