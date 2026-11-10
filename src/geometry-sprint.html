@@ -11,6 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./study-icon-192.png">
   <script src="./geometry-sprint-content.js" defer></script>
+  <script src="./geometry-sprint-engine.js" defer></script>
   <script src="./geometry-sprint.js" defer></script>
 </head>
 <body>
@@ -20,9 +21,13 @@
     <section class="sprint-hero" aria-labelledby="sprint-title">
       <p class="small-label">Gümnaasium · planimeetria</p>
       <h1 id="sprint-title">Nelinurgad ja hulknurgad</h1>
-      <p>Alusta lühitestist ja harjuta kõigepealt kahte oskust, kus vigu tuli. Näita paberil, kuidas mõtlesid: joonis, omadus või valem, arvutus ja vastus koos ühikuga.</p>
+      <p>Üks keeruline kontrolltöö ei ütle, mida sa suudad õppida. Leiame konkreetse koha, harjutame võtet ja proovime teist ülesannet. Võid teha ainult ühe sammu korraga.</p>
+      <p>Kõigepealt põhivõtted ja põhjendatud lahenduskäik. Kui need muutuvad kindlamaks ja aega jääb, saad lisavõtte juurde võtta.</p>
       <a class="primary" href="#eeldiagnoos">Alusta eeldiagnoosi</a>
     </section>
+    <section id="coach-next" class="sprint-panel" aria-label="Sinu järgmine samm"></section>
+    <p id="save-status" class="minor" role="status"></p>
+    <p id="pause-note" class="minor" role="status"></p>
     <nav class="sprint-nav" aria-label="Harjutuse etapid">
       <a href="#eeldiagnoos">1. Eeldiagnoos</a>
       <a href="#harjuta">2. Harjuta</a>
@@ -31,44 +36,56 @@
     </nav>
 
     <section class="sprint-panel" id="eeldiagnoos" aria-labelledby="diagnostic-title">
-      <h2 id="diagnostic-title">Eeldiagnoos · 10–12 min</h2>
-      <p>Proovi ilma valemileheta. Kui jääd hätta, jäta vastus tühjaks ja liigu edasi. Tagasiside tuleb lõpus.</p>
+      <h2 id="diagnostic-title">Eeldiagnoos · üks ülesanne korraga</h2>
+      <p>Ka 2–5 minutist piisab üheks sammuks. Kokku 8 ülesannet; võid nende vahel pausi teha. Proovi ilma valemileheta, näita mõttekäiku paberil või kirjuta siia. Tagasiside tuleb lõpus, et järgmised vastused jääksid sinu enda omadeks.</p>
+      <p id="diagnostic-position" role="status"></p>
       <form id="diagnostic-form">
         <ol id="diagnostic-questions" class="sprint-questions"></ol>
-        <button type="submit" class="primary">Kontrolli vastuseid</button>
+        <div id="diagnostic-nav" class="sprint-actions"></div>
+        <button id="diagnostic-submit" type="submit" class="primary">Vali minu kaks harjutusteemat</button>
       </form>
       <div id="diagnostic-result" class="sprint-result" tabindex="-1" hidden></div>
     </section>
 
     <section class="sprint-panel" id="harjuta" aria-labelledby="practice-title">
-      <h2 id="practice-title">Harjuta nõrgimaid oskusi</h2>
-      <p>Ava vajalik teema ja loe näide läbi. Seejärel lahenda uus ülesanne ilma näidet vaatamata. Märgi joonisele andmed, täisnurk ja otsitav suurus.</p>
-      <div id="lessons" class="sprint-lessons"></div>
+      <h2 id="practice-title">Sinu kaks harjutusteemat · väikesed sammud</h2>
+      <div id="guided-practice"></div>
+      <details><summary>Teemade selgitused · soovi korral</summary><div id="lessons" class="sprint-lessons"></div></details>
     </section>
 
     <section class="sprint-panel" id="proovitoo" aria-labelledby="mock-title">
       <h2 id="mock-title">Proovitöö · 35 min · 24 punkti</h2>
-      <p>Kasuta koolitöös lubatud abivahendeid. Tee joonis ja näita lahenduskäiku. Kui jääd pikalt kinni, liigu edasi ja jäta kontrolliks kolm minutit.</p>
-      <button id="mock-start" class="primary" type="button">Alusta 35 minuti proovitööd</button>
+      <p>Vali 35 minutit siis, kui sul on selleks rahulik aeg. Bussis või vahetunnis võid teha sama töö osadena: üks ülesanne, siis paus. Osadena töö ei ole ajastatud testi tulemus; samu ülesandeid pärast uuesti tehes pole need enam nägemata.</p>
+      <p>Kasuta koolitöös lubatud abivahendeid. Tee joonis ja põhjenda, miks omadus või valem sobib. Paberil lahendamine on täiesti sobiv.</p>
+      <div id="mock-options" class="sprint-actions"><button id="mock-start" class="primary" type="button">Mul on 35 minutit · alustan proovitööd</button><button id="mock-short" class="secondary" type="button">Teen osadena · ajalimiidita</button></div>
       <div id="mock-work" hidden>
         <p id="mock-clock" class="sprint-clock" aria-label="Proovitöö taimer"></p>
         <p id="mock-notice" class="minor" role="status"></p>
         <ol id="mock-questions" class="sprint-questions"></ol>
+        <div id="mock-nav" class="sprint-actions"></div>
         <button id="mock-finish" class="primary" type="button">Lõpeta ja ava lahendused</button>
+        <button id="mock-reveal" class="primary" type="button" hidden>Ava lahendused ja vaatan töö üle</button>
       </div>
       <section id="mock-key" hidden aria-labelledby="key-title">
         <h3 id="key-title" tabindex="-1">Punktivõti</h3>
-        <p>Iga märgitud samm annab ühe punkti. Vali iga ülesande eest teenitud punktid. Harjutuse siht on vähemalt 22/24.</p>
+        <p>Iga põhjendatud samm annab ühe punkti. Võrdle oma paberit või salvestatud mõttekäiku punktivõtmega. Punktid märgid ise; rakendus ei hinda automaatselt sinu põhjenduse õigsust. Selle proovi punktidest ei tuletata koolihinnet.</p>
         <ol id="mock-marking" class="sprint-questions"></ol>
         <div id="mock-result" class="sprint-result" aria-live="polite"></div>
       </section>
     </section>
 
     <section class="sprint-panel" id="kiirkordus" aria-labelledby="warmup-title">
-      <h2 id="warmup-title">Kiirkordus · 8–10 min</h2>
-      <p>Kirjuta esmalt mälust nurgasumma, diagonaalide arv ja pindalavalemid. Tee allpool vähemalt üks arvutus teemast, milles proovitööl punkte kaotasid.</p>
+      <h2 id="warmup-title">Kiirkordus · enne 12. novembri kontrolltööd</h2>
+      <p>Hoia see viimaseks rahulikuks meenutuseks. Võta 2–5 minutit: meenuta üht seost ja lahenda üks ülesanne. Kõiki nelja ei pea tegema. See ei ole uus proovihinne.</p>
       <div id="warmup-questions" class="sprint-lessons"></div>
     </section>
+
+    <details class="sprint-panel">
+      <summary id="share-title">Minu töö koopia · soovi korral</summary>
+      <p>Vastuste järgi valitakse järgmine samm siin äpis. Paberit ega fotot ei ole vaja saata. See geomeetriamoodul hoiab vastused ja mustandid ainult selles brauseris. Soovi korral võid salvestada koopia või jagada oma mõttekäiku vestluses; õppimine jätkub ka jagamiseta.</p>
+      <div class="sprint-actions"><button id="copy-work" class="secondary" type="button">Kopeerin töö ülevaatuseks</button><button id="download-work" class="secondary" type="button">Laadin oma töö tekstifailina alla</button></div>
+      <p id="share-status" role="status"></p><textarea id="share-text" aria-label="Minu töö jagamiseks" rows="8" readonly hidden></textarea>
+    </details>
 
     <footer class="sprint-foot">
       <p>Ülesanded on loodud selle harjutuse jaoks. Kooliõpiku juurde naasmiseks ava Opiqust <a href="https://www.opiq.ee/kit/527/chapter/30068">Nelinurk</a> ja <a href="https://www.opiq.ee/kit/527/chapter/30069">Hulknurk</a>. Täistekst võib vajada kooli ligipääsu.</p>

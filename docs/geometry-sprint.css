@@ -94,6 +94,16 @@ main.sprint { max-width: 900px; padding: 1.25rem clamp(1rem, 4vw, 2rem) 3rem; }
 #mock-key { margin-top: 1.25rem; }
 .sprint-foot { padding: .65rem 0 0; color: var(--muted); font-size: .85rem; }
 .sprint-noscript { padding: 1rem; }
+.sprint-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .8rem 0; }
+.sprint button { min-height: 44px; white-space: normal; max-width: 100%; }
+.sprint-working { display: block; margin: 1rem 0; }
+.sprint textarea { display: block; width: 100%; box-sizing: border-box; max-width: 100%; min-height: 90px; font: inherit; padding: .7rem; border: 1px solid #8fa5aa; border-radius: 8px; margin-top: .5rem; }
+.sprint [hidden] { display: none !important; }
+#guided-practice > p > button, #coach-next > button { margin: .25rem; }
+#guided-practice form > label { display: block; margin: .7rem 0; }
+#guided-practice input[type=checkbox] { width: 20px; height: 20px; vertical-align: middle; }
+#guided-practice details { margin: .75rem 0; }
+.sprint-control input, .sprint-control select, .sprint textarea { font-size: 16px; }
 @media print {
   .sprint-top, .sprint-nav, .sprint-hero, #eeldiagnoos, #harjuta, #kiirkordus, .sprint-foot, button { display: none !important; }
   #proovitoo { border: 0; padding: 0; }
