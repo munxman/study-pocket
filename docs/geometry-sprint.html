@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="et">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#126b62">
+  <title>Nelinurgad ja hulknurgad · Õpitasku</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./geometry-sprint.css">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./study-icon-192.png">
+  <script src="./geometry-sprint-content.js" defer></script>
+  <script src="./geometry-sprint.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#eeldiagnoos">Liigu eeldiagnoosini</a>
+  <header class="sprint-top"><a href="./index.html">‹ Õpitasku</a><span>Lai matemaatika</span></header>
+  <main class="sprint">
+    <section class="sprint-hero" aria-labelledby="sprint-title">
+      <p class="small-label">Gümnaasium · planimeetria</p>
+      <h1 id="sprint-title">Nelinurgad ja hulknurgad</h1>
+      <p>Alusta lühitestist ja harjuta kõigepealt kahte oskust, kus vigu tuli. Näita paberil, kuidas mõtlesid: joonis, omadus või valem, arvutus ja vastus koos ühikuga.</p>
+      <a class="primary" href="#eeldiagnoos">Alusta eeldiagnoosi</a>
+    </section>
+    <nav class="sprint-nav" aria-label="Harjutuse etapid">
+      <a href="#eeldiagnoos">1. Eeldiagnoos</a>
+      <a href="#harjuta">2. Harjuta</a>
+      <a href="#proovitoo">3. Proovitöö</a>
+      <a href="#kiirkordus">4. Kiirkordus</a>
+    </nav>
+
+    <section class="sprint-panel" id="eeldiagnoos" aria-labelledby="diagnostic-title">
+      <h2 id="diagnostic-title">Eeldiagnoos · 10–12 min</h2>
+      <p>Proovi ilma valemileheta. Kui jääd hätta, jäta vastus tühjaks ja liigu edasi. Tagasiside tuleb lõpus.</p>
+      <form id="diagnostic-form">
+        <ol id="diagnostic-questions" class="sprint-questions"></ol>
+        <button type="submit" class="primary">Kontrolli vastuseid</button>
+      </form>
+      <div id="diagnostic-result" class="sprint-result" tabindex="-1" hidden></div>
+    </section>
+
+    <section class="sprint-panel" id="harjuta" aria-labelledby="practice-title">
+      <h2 id="practice-title">Harjuta nõrgimaid oskusi</h2>
+      <p>Ava vajalik teema ja loe näide läbi. Seejärel lahenda uus ülesanne ilma näidet vaatamata. Märgi joonisele andmed, täisnurk ja otsitav suurus.</p>
+      <div id="lessons" class="sprint-lessons"></div>
+    </section>
+
+    <section class="sprint-panel" id="proovitoo" aria-labelledby="mock-title">
+      <h2 id="mock-title">Proovitöö · 35 min · 24 punkti</h2>
+      <p>Kasuta koolitöös lubatud abivahendeid. Tee joonis ja näita lahenduskäiku. Kui jääd pikalt kinni, liigu edasi ja jäta kontrolliks kolm minutit.</p>
+      <button id="mock-start" class="primary" type="button">Alusta 35 minuti proovitööd</button>
+      <div id="mock-work" hidden>
+        <p id="mock-clock" class="sprint-clock" aria-label="Proovitöö taimer"></p>
+        <p id="mock-notice" class="minor" role="status"></p>
+        <ol id="mock-questions" class="sprint-questions"></ol>
+        <button id="mock-finish" class="primary" type="button">Lõpeta ja ava lahendused</button>
+      </div>
+      <section id="mock-key" hidden aria-labelledby="key-title">
+        <h3 id="key-title" tabindex="-1">Punktivõti</h3>
+        <p>Iga märgitud samm annab ühe punkti. Vali iga ülesande eest teenitud punktid. Harjutuse siht on vähemalt 22/24.</p>
+        <ol id="mock-marking" class="sprint-questions"></ol>
+        <div id="mock-result" class="sprint-result" aria-live="polite"></div>
+      </section>
+    </section>
+
+    <section class="sprint-panel" id="kiirkordus" aria-labelledby="warmup-title">
+      <h2 id="warmup-title">Kiirkordus · 8–10 min</h2>
+      <p>Kirjuta esmalt mälust nurgasumma, diagonaalide arv ja pindalavalemid. Tee allpool vähemalt üks arvutus teemast, milles proovitööl punkte kaotasid.</p>
+      <div id="warmup-questions" class="sprint-lessons"></div>
+    </section>
+
+    <footer class="sprint-foot">
+      <p>Ülesanded on loodud selle harjutuse jaoks. Kooliõpiku juurde naasmiseks ava Opiqust <a href="https://www.opiq.ee/kit/527/chapter/30068">Nelinurk</a> ja <a href="https://www.opiq.ee/kit/527/chapter/30069">Hulknurk</a>. Täistekst võib vajada kooli ligipääsu.</p>
+    </footer>
+
+    <template id="diagram-angles">
+      <figure class="sprint-diagram">
+        <svg viewBox="0 0 270 132" role="img" aria-label="Kumer viisnurk jaotub ühest tipust tõmmatud kahe diagonaaliga kolmeks kolmnurgaks">
+          <path d="M27 101 L79 24 L176 17 L236 63 L172 112 Z" fill="#eef5ed" stroke="#126b62" stroke-width="3"/>
+          <path d="M27 101 L176 17 M27 101 L236 63" fill="none" stroke="#126b62" stroke-dasharray="6 4" stroke-width="2"/>
+          <g fill="#142f38" font-size="16" font-weight="700" text-anchor="middle">
+            <text x="92" y="55">1</text><text x="155" y="65">2</text><text x="153" y="97">3</text>
+          </g>
+        </svg>
+        <figcaption>Kaks diagonaali ühest tipust jagavad viisnurga kolmeks kolmnurgaks.</figcaption>
+      </figure>
+    </template>
+    <template id="diagram-areas">
+      <figure class="sprint-diagram">
+        <svg viewBox="0 0 288 137" role="img" aria-label="Võrdhaarne trapets aluste a ja b ning kõrgusega h. Pikema aluse üleulatus on mõlemas otsas (a miinus b) jagatud kahega.">
+          <path d="M28 106 L84 28 H204 L260 106 Z" fill="#eef5ed" stroke="#126b62" stroke-width="3"/>
+          <path d="M84 28 V106 M204 28 V106 M84 94 H96 V106" fill="none" stroke="#126b62" stroke-width="2"/>
+          <g fill="#142f38" font-size="15" font-weight="650" text-anchor="middle">
+            <text x="144" y="20">b</text><text x="144" y="126">a</text><text x="100" y="71">h</text>
+            <text x="52" y="126">(a − b)/2</text><text x="237" y="126">(a − b)/2</text>
+          </g>
+        </svg>
+        <figcaption>Võrdhaarsel trapetsil on pikema aluse üleulatus mõlemas otsas sama.</figcaption>
+      </figure>
+    </template>
+  </main>
+  <noscript><p class="sprint-noscript">Vastuste kontrolliks luba JavaScript.</p></noscript>
+</body>
+</html>
