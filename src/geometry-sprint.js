@@ -4,26 +4,71 @@
   if (typeof module === 'object' && module.exports) module.exports = E;
   if (typeof document === 'undefined') return;
   const data = globalThis.GeometrySprintContent;
+  const bank = globalThis.GeometrySprintTargets;
   const byId = id => document.getElementById(id);
   const key = 'study-pocket-geometry-coach-v1';
   const duration = 35 * 60 * 1000;
   const fmt = new Intl.NumberFormat('et-EE', { maximumFractionDigits: 6 });
   function read(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
-  const state = E.restore(read(key), data, read('study-pocket-geometry-diagnostic-v1'), read('study-pocket-geometry-mock-v1'));
-  let timer;
+  let storedRaw = null, loadFailure = false, damaged = false, decoded = null;
+  try { storedRaw = localStorage.getItem(key); if (storedRaw != null) { try { decoded = JSON.parse(storedRaw); } catch { damaged = true; } } } catch { loadFailure = true; }
+  if (storedRaw != null && !damaged && (!decoded || typeof decoded !== 'object' || Array.isArray(decoded) || decoded.version !== 1 || !decoded.diagnostic || !Array.isArray(decoded.diagnostic.values) || !Array.isArray(decoded.diagnostic.working) || !decoded.practice || typeof decoded.practice !== 'object')) damaged = true;
+  const state = E.restore(decoded, data, read('study-pocket-geometry-diagnostic-v1'), read('study-pocket-geometry-mock-v1'));
+  let lastStoredRaw = storedRaw, blocked = damaged ? 'damaged' : loadFailure ? 'unavailable' : null, recoveryKey = null, otherRaw = null;
+  let timer, targetUI;
+  state.recordId ||= 'geometry-' + (globalThis.crypto?.randomUUID?.() || Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
+  function publishResults() {
+    if (blocked || lastStoredRaw !== JSON.stringify(state) || !globalThis.BackupStore || !globalThis.GeometryReportAdapter) return;
+    try { const model = globalThis.GeometryReportModel, projected = globalThis.GeometryReportAdapter.project(state, data, bank); if (!projected.sessions.length) return; const previous = globalThis.BackupStore.snapshot().modules[model.KEY] || model.fresh(); const merged = model.merge(null, projected, previous); if (JSON.stringify(merged) !== JSON.stringify(previous)) globalThis.StudySync.storage.setItem(model.KEY, JSON.stringify(merged)); }
+    catch { byId('save-status').textContent += ' Geomeetria tulemuste kontole saatmine ootab; kohalik töö on alles.'; }
+  }
+  globalThis.addEventListener?.('backup-ready', publishResults);
   function el(tag, text, cls) { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; }
   function button(text, fn, cls = 'secondary') { const b = el('button', text, cls); b.type = 'button'; b.addEventListener('click', fn); return b; }
+  function download(text, name) { const url = URL.createObjectURL(new Blob([text], { type: 'application/json;charset=utf-8' })); const a = el('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  function recoveryPanel() {
+    let panel = byId('geometry-recovery');
+    if (!panel) { panel = el('section', null, 'sprint-panel'); panel.id = 'geometry-recovery'; panel.setAttribute('role', 'status'); byId('save-status').parentNode.append(panel); }
+    return panel;
+  }
+  function recoveryText() { return JSON.stringify({ format: 'geometry-recovery-v1', at: Date.now(), reason: blocked, originalStoredRaw: storedRaw, otherStoredRaw: otherRaw, currentWindow: state }, null, 2); }
+  function protectSavedWork(reason, latestRaw) {
+    blocked = reason; if (latestRaw !== undefined) otherRaw = latestRaw;
+    if (!recoveryKey) recoveryKey = key + '-recovery-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    let recoverySaved = false;
+    try { localStorage.setItem(recoveryKey, recoveryText()); recoverySaved = true; } catch {}
+    const message = reason === 'conflict' ? 'Teises aknas on uuem töö. Ma ei kirjuta seda selle akna mustandiga üle.' : reason === 'damaged' ? 'Varasemat salvestust ei saanud lugeda. Algne salvestus jääb alles ja seda ei kirjutata üle.' : 'Salvestust ei saanud lugeda. Hoian praeguse töö siin avatuna.';
+    byId('save-status').textContent = message + (recoverySaved ? ' Selle akna töö on eraldi taastamiskoopias.' : ' Ära sulge lehte; laadi oma töö koopia alla.');
+    const panel = recoveryPanel(); panel.replaceChildren(el('h2', 'Hoiame sinu töö alles'), el('p', message), el('p', 'Laadi koopia alla enne akende sulgemist või uuesti avamist. Koopia sisaldab mõlema akna olemasolevat tööd; midagi ei ühendata oletuse põhjal.'));
+    panel.append(button('Laadin taastamiskoopia alla', () => download(recoveryText(), 'geomeetria-taastamiskoopia.json')));
+    const area = el('textarea'); area.rows = 5; area.readOnly = true; area.setAttribute('aria-label', 'Geomeetria taastamiskoopia'); area.value = recoveryText(); panel.append(area);
+  }
+  function showEarlierRecoveries() {
+    try {
+      const names = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).filter(k => typeof k === 'string' && k.startsWith(key + '-recovery-'));
+      if (!names.length) return;
+      const panel = recoveryPanel(); panel.append(el('h2', 'Varasemad taastamiskoopiad'), el('p', 'Need eraldi koopiad on alles. Õppimise jätkamine ei kirjuta neid üle.'));
+      names.forEach((name, i) => panel.append(button('Laadin varasema koopia ' + (i + 1) + ' alla', () => { const raw = localStorage.getItem(name); if (raw != null) download(raw, 'geomeetria-taastamiskoopia-' + (i + 1) + '.json'); })));
+    } catch {}
+  }
   function save() {
-    try { localStorage.setItem(key, JSON.stringify(state)); byId('save-status').textContent = 'Salvestatud selles brauseris. Võid pausi teha ja samas brauseris jätkata.'; return true; }
+    if (blocked) { protectSavedWork(blocked); return false; }
+    try {
+      const latest = localStorage.getItem(key);
+      if (latest !== lastStoredRaw) { protectSavedWork('conflict', latest); return false; }
+      const text = JSON.stringify(state); localStorage.setItem(key, text); lastStoredRaw = text;
+      byId('save-status').textContent = 'Salvestatud selles brauseris. Võid pausi teha ja samas brauseris jätkata.'; publishResults(); return true;
+    }
     catch { byId('save-status').textContent = 'Salvestamine ei õnnestunud. Ära sulge lehte; kopeeri või laadi oma töö allpool alla.'; return false; }
   }
+  globalThis.addEventListener?.('storage', event => { if (event.key !== key) return; try { const latest = localStorage.getItem(key); if (latest !== lastStoredRaw) protectSavedWork('conflict', latest); } catch { protectSavedWork('unavailable'); } });
   function go(id) { const n = byId(id); n.scrollIntoView({ block: 'start', behavior: 'smooth' }); n.tabIndex = -1; n.focus({ preventScroll: true }); }
   function answer(q) { return q.choices ? q.choices[q.answer] : fmt.format(q.answer) + (q.unit ? ' ' + q.unit : ''); }
   function control(q, value, change) {
     const box = el('div'); box.append(el('p', q.prompt, 'sprint-question'));
     const label = el('label', null, 'sprint-control'); label.append(el('span', q.unit ? 'Vastus (' + q.unit + ')' : 'Vastus'));
     const field = el(q.choices ? 'select' : 'input'); field.setAttribute('aria-label', q.prompt);
-    if (q.choices) {
+    if (q.choices) { field.className = 'sprint-choice';
       const empty = el('option', 'Vali vastus'); empty.value = ''; field.append(empty);
       q.choices.forEach((text, i) => { const o = el('option', text); o.value = String(i); field.append(o); });
     } else { field.type = 'text'; field.inputMode = 'decimal'; field.autocomplete = 'off'; field.maxLength = 30; }
@@ -45,11 +90,13 @@
     if (p) box.append(el('p', 'Sinu kaks harjutusteemat: ' + p.topics.map(t => data.topics[t]).join(' · ') + '.'));
     if (step.kind === 'diagnostic') {
       box.append(el('p', 'Alusta ühe ülesandega. Eeldiagnoosi võid jagada 2–5 minuti pikkusteks kordadeks; vastused jäävad alles.'), button('Jätkan eeldiagnoosi', () => go('eeldiagnoos'), 'primary'));
+    } else if (step.kind === 'target') {
+      box.append(el('p', 'Järgmiseks: ' + bank.skills[step.skill].title + (step.phase === 'practice' ? ' · üks sobiv harjutus.' : ' · uus ülesanne ilma näidet ees hoidmata.')), button('Teen ühe ülesande', () => { targetUI.show(step.skill, step.phase); go('harjuta'); }, 'primary'));
     } else if (step.kind === 'practice') {
       box.append(el('p', 'Järgmiseks: ' + data.topics[step.topic] + ' · ülesanne ' + (step.index + 1) + '/2. Umbes 2–5 min; rohkem aega on täiesti sobiv.'), button('Teen ühe ülesande', () => { showPractice(step.topic, step.index); go('harjuta'); }, 'primary'));
     } else if (step.kind === 'mock') {
       box.append(el('p', state.mock ? (state.mock.mode === 'practice' ? 'Jätka sama ülesannet või tee järgmine väike samm. Osadena harjutusel ei ole taimerit.' : 'Jätka pooleli proovitööd. Ajastatud töö kell käib ka siis, kui leht on suletud.') : 'Põhiharjutuste järel saad proovida teistsuguseid ülesandeid. Vali rahulik 35-minutiline aeg või tee proovitöö osadena, ilma ajasurveta. Edasilükatud lisavõte ei ole lahendatud ülesanne.'), button(state.mock ? 'Jätkan proovitööd' : 'Valin proovitöö viisi', () => go('proovitoo'), 'primary'));
-    } else box.append(el('p', 'Vaata üle lahenduskäigud, mitte ainult lõppvastused. Kiirkordus jääb neljapäeval enne kontrolltööd.'), button('Vaatan lahenduskäike', () => go('mock-key'), 'primary'));
+    } else box.append(el('p', 'Vaata üle lahenduskäigud, mitte ainult lõppvastused. Kiirkordus jääb neljapäeval enne kontrolltööd.'), button('Vaatan lahenduskäike', () => go(state.mock?.revealed === false ? 'mock-reveal' : 'mock-key'), 'primary'));
     box.append(button('Praegu paus', () => { if (!save()) { byId('pause-note').textContent = 'Töö pole salvestatud. Hoia leht lahti ja kasuta allpool töö koopia salvestamist.'; return; } byId('pause-note').textContent = state.mock && !state.mock.finished && state.mock.mode !== 'practice' ? 'Ajastatud töö kell jätkub. Kui paus on vajalik, vali proovitöö juures „Jätkan osadena”.' : 'Paus sobib. Järgmisel avamisel ootab sama järgmine samm.'; }));
   }
   function showDiagnostic() {
@@ -61,30 +108,40 @@
       const values = d.submitted.values, p = plan(), earned = data.diagnostic.map((q, i) => values[i].trim() !== '' && E.matches(q, values[i]));
       const answered = values.filter(v => v.trim() !== '').length;
       const box = byId('diagnostic-result'); box.hidden = false;
-      box.replaceChildren(el('h3', 'Eeldiagnoos: ' + earned.filter(Boolean).length + '/' + answered + ' vastatud ülesandest õige'), el('p', (data.diagnostic.length - answered) + ' jäeti vastamata. Vastamata ei tähenda, et sa ei oska. See lühitest ei ole koolihinne.'));
+      box.replaceChildren(el('h3', answered ? 'Eeldiagnoos: ' + earned.filter(Boolean).length + '/' + answered + ' vastatud ülesandest õige' : 'Alustame põhivõttest · oskused veel hindamata'), el('p', (data.diagnostic.length - answered) + ' jäeti vastamata. Vastamata ei tähenda, et sa ei oska. See lühitest ei ole koolihinne.'));
       const reasons = { errors: 'siin tuli viga', unanswered: 'vajab veel kontrollimist', transfer: 'proovime teistsugust rakendust' };
       p.topics.forEach(t => box.append(el('p', data.topics[t] + ' — ' + reasons[p.reasons[t]] + '.')));
-      box.append(button('Alustan esimest harjutusteemat', () => { const step = E.nextStep(state, data); if (step.kind === 'practice') showPractice(step.topic, step.index); go('harjuta'); }, 'primary'));
+      box.append(button('Alustan esimest harjutusteemat', () => { const step = E.nextStep(state, data); if (step.kind === 'target') targetUI.show(step.skill, step.phase); else if (step.kind === 'practice') showPractice(step.topic, step.index); go('harjuta'); }, 'primary'));
       const details = el('details'); details.append(el('summary', 'Vaata eeldiagnoosi vastuseid ja selgitusi'));
       data.diagnostic.forEach((q, i) => details.append(el('p', (i + 1) + '. ' + (values[i].trim() === '' ? 'Vastamata. ' : earned[i] ? 'Õige. ' : 'Vaatame üle. ') + q.explanation)));
       box.append(details); return;
     }
     const i = d.index, q = data.diagnostic[i], item = el('li'); list.start = i + 1;
     byId('diagnostic-position').textContent = 'Ülesanne ' + (i + 1) + '/' + data.diagnostic.length;
-    const { box } = control(q, d.values[i], v => { d.values[i] = v; save(); }); item.append(box);
-    item.append(working(d.working[i], v => { d.working[i] = v; save(); }).label); list.append(item);
+    const { box } = control(q, d.values[i], v => { d.values[i] = v; d.updatedAt = Date.now(); save(); }); item.append(box);
+    item.append(working(d.working[i], v => { d.working[i] = v; d.updatedAt = Date.now(); save(); }).label); list.append(item);
     const nav = byId('diagnostic-nav');
     if (i > 0) nav.append(button('Eelmine', () => { d.index--; save(); showDiagnostic(); }));
     if (i < data.diagnostic.length - 1) nav.append(button('Salvesta ja järgmine', () => { d.index++; save(); showDiagnostic(); }, 'primary'));
     nav.append(button('Jätan praegu vahele', () => { if (d.index < data.diagnostic.length - 1) d.index++; save(); showDiagnostic(); }));
   }
-  byId('diagnostic-form').addEventListener('submit', event => {
-    event.preventDefault(); const d = state.diagnostic;
-    if (!d.values.some(v => v.trim() !== '')) { byId('diagnostic-position').textContent = 'Proovi vähemalt üht ülesannet; võid ka teisi proovida ja raske koha vahele jätta. Kõikide tühjade vastuste põhjal me nõrkusi ei vali.'; return; }
-    if (d.submitted) return;
+  function finishDiagnostic() {
+    const d = state.diagnostic; if (d.submitted) return;
     const p = E.rankTopics(data, d.values);
     d.submitted = { values: [...d.values], working: [...d.working], at: Date.now(), topics: p.topics, reasons: p.reasons };
+    if (bank && !state.targeted) state.targeted = E.targetPlan(state, data, bank, Date.now());
     save(); showDiagnostic(); showPractice(); route(); go('diagnostic-result');
+  }
+  byId('diagnostic-form').addEventListener('submit', event => {
+    event.preventDefault(); const d = state.diagnostic;
+    if (d.submitted) return;
+    if (d.index < data.diagnostic.length - 1) { d.index++; save(); showDiagnostic(); return; }
+    if (!d.values.some(v => v.trim() !== '')) {
+      byId('diagnostic-position').textContent = 'Kõik jäid praegu vastamata. See ei ole ebaõnnestumine ega tõend nõrkusest. Võid alustada ühe lihtsa näitega ja seejärel proovida ise.';
+      if (!byId('diagnostic-unassessed')) { const b = button('Alustan põhivõtetest · oskused veel hindamata', finishDiagnostic, 'primary'); b.id = 'diagnostic-unassessed'; byId('diagnostic-nav').append(b); }
+      return;
+    }
+    finishDiagnostic();
   });
   function lessonBody(lesson) {
     const box = el('div'), list = el('ul'); lesson.rules.forEach(r => list.append(el('li', r))); box.append(list);
@@ -95,9 +152,18 @@
     const container = byId('guided-practice'), p = plan(); container.replaceChildren();
     if (!p) { container.append(el('p', 'Eeldiagnoosi järel valin sulle kaks teemat. Soovi korral saad allpool ise teema avada.')); return; }
     const next = E.nextStep(state, data);
+    if (!topic && next.kind === 'target' && targetUI) { targetUI.show(next.skill, next.phase); return; }
     if (!topic && next.kind === 'practice') { topic = next.topic; index = next.index; }
     if (!topic) {
-      container.append(el('h3', 'Järgmine valik: proovitöö'), el('p', 'Harjutatud vastused ei tähenda veel kindlat oskust. Proovitöös kontrollid teistsuguste ülesannetega, kas oskad meetodi ise valida. Edasilükatud lisavõte jääb soovi korral teemade juurde.'), button('Edasi proovitöö juurde', () => go('proovitoo'), 'primary')); return;
+      container.append(el('h3', 'Järgmine valik: proovitöö'), el('p', 'Harjutatud vastused ei tähenda veel kindlat oskust. Proovitöös kontrollid teistsuguste ülesannetega, kas oskad meetodi ise valida. Edasilükatud lisavõte jääb soovi korral teemade juurde.'), button('Edasi proovitöö juurde', () => go('proovitoo'), 'primary'));
+      if (bank && targetUI) {
+        if (!state.targeted) container.append(button('Proovin eeldiagnoosi vea kohta värsket ülesannet', () => { state.targeted = E.targetPlan(state, data, bank, Date.now()); save(); showPractice(); route(); }));
+        else {
+          const nextSkill = state.targeted.skills.find(id => !state.targeted.items[bank.skills[id].reserve.id]?.attempts.length);
+          if (nextSkill) container.append(button('Soovi korral: üks värske segakontroll', () => { targetUI.show(nextSkill, 'reserve'); go('harjuta'); }));
+          container.append(button('Kontrollin ümbermõõdu ja pindala vahet', () => targetUI.show('rectangle_perimeter_area', 'practice')));
+        }
+      } return;
     }
     const lesson = data.lessons.find(l => l.topic === topic), q = lesson.practice[index], a = attempt(topic, index), done = a.attempts.length > 0;
     container.append(el('h3', data.topics[topic] + ' · ' + (index + 1) + '/2'), el('p', index === 0 ? 'Proovi ise või ava üks näide. Pärast harjutame järgmist ülesannet ilma näidet ees hoidmata.' : 'Pane eelmine näide kõrvale. Vali ise sobiv võte ja põhjenda seda. Kui vajad abi, võid näite avada.'));
@@ -139,7 +205,7 @@
     const label = el('label', 'Minu punktihinnang ', 'sprint-control'), f = el('select'); f.setAttribute('aria-label', 'Ülesanne ' + (i + 1) + ': teenitud punktid');
     for (let n = -1; n <= q.marks.length; n++) { const o = el('option', n < 0 ? 'Vali' : n + '/' + q.marks.length); o.value = n < 0 ? '' : String(n); f.append(o); }
     label.append(f); li.append(label); byId('mock-marking').append(li);
-    f.addEventListener('change', () => { if (!state.mock?.finished) return; state.mock.marks[i] = f.value; save(); showMarks(); }); return f;
+    f.addEventListener('change', () => { if (!state.mock?.finished) return; state.mock.marks[i] = f.value; state.mock.marksUpdatedAt = Date.now(); save(); showMarks(); }); return f;
   });
   function showMarks() {
     const m = state.mock, box = byId('mock-result'), marks = m.marks || [], done = marks.filter(v => v !== '').length;
@@ -163,7 +229,7 @@
     byId('mock-notice').textContent = m.mode === 'practice' ? 'Osadena harjutus · ajalimiidita. See ei ole võrreldav katkematu 35 minuti proovitööga.' : m.expired ? '35 minutit on täis. Salvestatud töö on lukustatud; ava lahendused, kui oled valmis üle vaatama.' : m.finished ? 'Ajastatud töö lõpetatud.' : 'Kell käib ka taustal. Vali pausiks „Jätkan osadena”; siis muutub töö ajalimiidita harjutuseks.';
     const questions = byId('mock-questions'); questions.replaceChildren(); questions.start = m.index + 1;
     const q = data.mock[m.index], li = el('li'); li.append(el('h3', q.title + ' · ' + q.marks.length + ' p'), el('p', q.prompt, 'sprint-question'));
-    const w = working(m.working[m.index], v => { if (expire()) { showMock(); route(); return; } if (!m.finished) { m.working[m.index] = v; save(); } }, 'Minu lahenduskäik (võid teha ka paberil)'); w.field.readOnly = !!m.finished; li.append(w.label); questions.append(li);
+    const w = working(m.working[m.index], v => { if (expire()) { showMock(); route(); return; } if (!m.finished) { m.working[m.index] = v; m.updatedAt = Date.now(); save(); } }, 'Minu lahenduskäik (võid teha ka paberil)'); w.field.readOnly = !!m.finished; li.append(w.label); questions.append(li);
     const nav = byId('mock-nav'); nav.replaceChildren(el('p', 'Ülesanne ' + (m.index + 1) + '/' + data.mock.length));
     if (m.index > 0) nav.append(button('Eelmine ülesanne', () => { m.index--; save(); showMock(); }));
     if (m.index < data.mock.length - 1) nav.append(button('Järgmine ülesanne', () => { m.index++; save(); showMock(); }, 'primary'));
@@ -192,11 +258,16 @@
     lines.push('\nEeldiagnoos — ' + (state.diagnostic.submitted ? 'esitatud' : 'pooleli mustand') + ' (põhjendus pole automaatselt hinnatud)');
     data.diagnostic.forEach((q, i) => lines.push(q.prompt, 'Minu vastus: ' + (diagnostic.values[i] || 'vastamata'), 'Minu mõttekäik: ' + (diagnostic.working[i] || 'salvestamata')));
     for (const lesson of data.lessons) lesson.practice.forEach((q, i) => { const a = state.practice[lesson.topic]?.[i]; if (a) { const t = a.attempts?.[0] || a; lines.push('\nHarjutus' + (a.attempts?.length ? ' — esitatud: ' : ' — pooleli mustand: ') + q.prompt, 'Minu vastus: ' + (t.value || 'vastamata'), 'Kasutasin abi: ' + (t.help ? 'jah' : 'ei märkinud'), 'Minu mõttekäik: ' + (t.working || 'salvestamata')); if (a.correction) lines.push('Minu hilisem parandus: ' + a.correction); } });
+    for (const [id,a] of Object.entries(state.targeted?.items || {})) { const f = E.targetQuestion(bank,id); if (!f) continue; const t = a.attempts?.[0] || a; lines.push('\nTäpne harjutus: ' + f.question.prompt, 'Minu vastus: ' + (t.value || 'vastamata'), 'Minu mõttekäik: ' + (t.working || 'salvestamata')); if(a.method) lines.push('Põhjenduse valik: ' + f.question.reason.choices[Number(a.method.value)]); if(a.correction) lines.push('Minu hilisem parandus: ' + a.correction); }
     if (state.mock) { const m = state.mock; lines.push('\nProovitöö: ' + (m.mode === 'practice' ? 'osadena / ajalimiidita' : '35 minuti vormis') + (m.finished ? ' — lõpetatud' : ' — pooleli')); data.mock.forEach((q, i) => lines.push(q.prompt, 'Minu töö: ' + (m.working?.[i] || 'paberil / salvestamata'), 'Minu enda punktihinnang: ' + (m.marks?.[i] ?? 'märkimata'))); if (m.review) lines.push('Minu tähelepanek: ' + m.review); }
     return lines.join('\n');
   }
   byId('copy-work').addEventListener('click', async () => { const text = reviewText(); try { await navigator.clipboard.writeText(text); byId('share-status').textContent = 'Kopeeritud. Kleebi ainult sinna, kuhu soovid oma tööd ülevaatuseks jagada.'; } catch { const area = byId('share-text'); area.hidden = false; area.value = text; area.focus(); area.select(); byId('share-status').textContent = 'Automaatne kopeerimine ei õnnestunud. Kopeeri valitud tekst või laadi fail alla.'; } });
-  byId('download-work').addEventListener('click', () => { const url = URL.createObjectURL(new Blob([reviewText()], { type: 'text/plain;charset=utf-8' })); const a = el('a'); a.href = url; a.download = 'minu-geomeetria-toe-ulevaatus.txt'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); });
-  byId('save-status').textContent = 'Töö jääb sellesse brauserisse; seda moodulit ei sünkroonita õpetajale automaatselt.';
+  byId('download-work').addEventListener('click', () => { const url = URL.createObjectURL(new Blob([reviewText()], { type: 'text/plain;charset=utf-8' })); const a = el('a'); a.href = url; a.download = 'minu-geomeetria-too-ulevaatus.txt'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); });
+  byId('save-status').textContent = 'Mõttekäigud jäävad sellesse brauserisse. Ühendatud äpis saadetakse kontole ainult tulemused ja ülesannete viited.';
+  if (blocked) protectSavedWork(blocked);
+  else showEarlierRecoveries();
+  if (bank && globalThis.GeometryTargetUI) targetUI = globalThis.GeometryTargetUI.create({state, bank, E, data, el, button, control, working, save, route, go, byId, answer, showPractice});
   showDiagnostic(); showPractice(); showMock(); route();
+  if (!blocked) save();
 })();

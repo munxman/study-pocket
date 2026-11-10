@@ -58,19 +58,22 @@ function documentFixture() {
   return document;
 }
 
-function harness({ storage = new Map(), storageFailure = false, clipboardFailure = false, now = START } = {}) {
-  const document = documentFixture(), intervals = new Map(), timeouts = new Map(), clipboard = [], blobs = [], revoked = [];
+function harness({ storage = new Map(), storageFailure = false, clipboardFailure = false, now = START, targeted = false, reporting = null } = {}) {
+  const document = documentFixture(), intervals = new Map(), timeouts = new Map(), clipboard = [], blobs = [], revoked = [], events = new Map();
   let clock = now, timerId = 0;
   class Clock extends Date { static now() { return clock; } }
   const context = {
-    GeometrySprintEngine: E, GeometrySprintContent: DATA, document, Intl, Date: Clock,
-    localStorage: { getItem: (key) => storage.get(key) || null, setItem: (key, value) => { if (storageFailure) throw Error('quota'); storage.set(key, value); } },
+    GeometrySprintEngine: targeted ? {...E,nextStep:(state,data,bank)=>E.nextStep(state,data,bank||require('../src/geometry-sprint-targets.js'))} : E, GeometrySprintContent: DATA, document, Intl, Date: Clock,
+    localStorage: { get length() { return storage.size; }, key: i => [...storage.keys()][i] || null, getItem: (key) => storage.get(key) || null, setItem: (key, value) => { if (storageFailure) throw Error('quota'); storage.set(key, value); } },
+    addEventListener: (name, fn) => { const listeners = events.get(name) || []; listeners.push(fn); events.set(name, listeners); },
     navigator: { clipboard: { writeText: async (text) => { if (clipboardFailure) throw Error('denied'); clipboard.push(text); } } },
     Blob: class { constructor(parts, options) { this.parts = parts; this.options = options; } },
     URL: { createObjectURL(blob) { blobs.push(blob); return 'blob:isolated-' + blobs.length; }, revokeObjectURL(url) { revoked.push(url); } },
     setInterval: (fn) => { intervals.set(++timerId, fn); return timerId; }, clearInterval: (id) => intervals.delete(id),
     setTimeout: (fn) => { timeouts.set(++timerId, fn); return timerId; }, clearTimeout: (id) => timeouts.delete(id),
   };
+  if(reporting){context.GeometryReportModel=require('../src/geometry-report-model.js');context.GeometryReportAdapter=require('../src/geometry-report-adapter.js');context.BackupStore={snapshot:()=>({modules:reporting})};context.StudySync={storage:{setItem:(k,v)=>reporting[k]=JSON.parse(v)}};}
+  if(targeted){context.GeometrySprintTargets=require('../src/geometry-sprint-targets.js');vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../src/geometry-target-ui.js'),'utf8'),context);}
   vm.runInNewContext(SOURCE, context);
   const h = {
     storage, document, clipboard, blobs, revoked, get now() { return clock; },
@@ -80,9 +83,10 @@ function harness({ storage = new Map(), storageFailure = false, clipboardFailure
     async click(text, scope) { const node = h.button(text, scope); assert.ok(node, 'button exists: ' + text); await node.click(); },
     async input(node, value, type = 'input') { assert.ok(node, 'input exists'); node.value = value; await node.emit(type); },
     async submit(node) { assert.ok(node, 'form exists'); await node.emit('submit'); },
+    async storageEvent(key, newValue) { for (const fn of events.get('storage') || []) await fn({key,newValue}); },
     answerField(scope) { return scope.querySelectorAll('input,select').find((node) => node.type !== 'checkbox'); },
     async advance(ms, runTimers = true) { clock += ms; if (runTimers) for (const fn of [...intervals.values()]) await fn(); },
-    reload(options = {}) { return harness({ storage, storageFailure, clipboardFailure, now: clock, ...options }); },
+    reload(options = {}) { return harness({ storage, storageFailure, clipboardFailure, now: clock, targeted, reporting, ...options }); },
     async fillDiagnostic(values = DATA.diagnostic.map((q) => String(q.answer))) {
       for (let i = 0; i < DATA.diagnostic.length; i++) {
         await h.input(h.answerField(h.id('diagnostic-questions')), values[i] || '');
@@ -279,4 +283,153 @@ test('Pause after failed saving keeps the recovery warning and does not promise 
   assert.match(h.id('save-status').textContent, /ei õnnestunud/);
   assert.doesNotMatch(h.id('pause-note').textContent, /Järgmisel avamisel ootab sama/);
   assert.match(h.id('pause-note').textContent, /sulge|lahti|avatud|koopia|kopeeri|salvesta/i);
+});
+
+test('An all-unanswered diagnostic offers an explicit unassessed starter without inventing errors', async () => {
+  const h = harness(); await h.fillDiagnostic(Array(8).fill(''));
+  assert.equal(h.state().diagnostic.submitted, null);
+  await h.id('diagnostic-unassessed').click();
+  const snapshot = h.state().diagnostic.submitted;
+  assert.deepEqual(snapshot.values, Array(8).fill(''));
+  const ranked = E.rankTopics(DATA, snapshot.values);
+  assert.equal(ranked.stats.reduce((sum, row) => sum + row.missed + row.answered, 0), 0);
+  assert.ok(snapshot.topics.every(topic => snapshot.reasons[topic] === 'unanswered'));
+  assert.match(h.id('diagnostic-result').textContent, /oskused veel hindamata/);
+  assert.equal(E.nextStep(h.state(), DATA).kind, 'practice');
+  assert.ok(h.id('guided-practice').querySelector('form'));
+  const reload = h.reload();
+  assert.deepEqual(reload.state().diagnostic.submitted, snapshot);
+});
+
+test('Submitting an early diagnostic field advances rather than freezing unseen answers', async () => {
+  const h = harness();
+  await h.input(h.answerField(h.id('diagnostic-questions')), '1620');
+  await h.submit(h.id('diagnostic-form'));
+  assert.equal(h.state().diagnostic.index, 1);
+  assert.equal(h.state().diagnostic.submitted, null);
+  assert.equal(h.answerField(h.id('diagnostic-questions')).getAttribute('aria-label'), DATA.diagnostic[1].prompt);
+});
+
+test('A stale tab preserves newer saved answers and retains its own distinct draft in a recoverable copy', async () => {
+  const storage = new Map(), a = harness({storage}), b = harness({storage});
+  await a.input(a.answerField(a.id('diagnostic-questions')), '1620');
+  await a.click('Salvesta ja järgmine', a.id('diagnostic-nav'));
+  await a.input(a.answerField(a.id('diagnostic-questions')), '44');
+  const newer = storage.get(KEY);
+  await b.input(b.id('diagnostic-questions').querySelector('textarea'), 'My separate first-question method');
+  assert.equal(storage.get(KEY), newer);
+  assert.match(b.id('save-status').textContent, /Teises aknas/);
+  const copies = [...storage.entries()].filter(([key]) => key.startsWith(KEY + '-recovery-'));
+  assert.equal(copies.length, 1);
+  const recovery = JSON.parse(copies[0][1]);
+  assert.equal(recovery.currentWindow.diagnostic.working[0], 'My separate first-question method');
+  assert.equal(recovery.otherStoredRaw, newer);
+  await b.click('Laadin taastamiskoopia alla', b.id('geometry-recovery'));
+  assert.equal(JSON.parse(b.blobs[0].parts.join('')).otherStoredRaw, newer);
+  const reloaded = b.reload();
+  assert.equal(reloaded.state().diagnostic.values[1], '44');
+  assert.ok(reloaded.button('Laadin varasema koopia 1 alla', reloaded.id('geometry-recovery')));
+});
+
+test('A storage event protects current-window work before another edit or pause can overwrite the other tab', async () => {
+  const h = harness();
+  await h.input(h.answerField(h.id('diagnostic-questions')), '1620');
+  const other = h.state(); other.diagnostic.values[1] = '44';
+  const otherRaw = JSON.stringify(other); h.storage.set(KEY, otherRaw);
+  await h.storageEvent(KEY, otherRaw);
+  await h.click('Praegu paus', h.id('coach-next'));
+  assert.equal(h.storage.get(KEY), otherRaw);
+  assert.match(h.id('save-status').textContent, /Teises aknas/);
+  assert.doesNotMatch(h.id('pause-note').textContent, /Järgmisel avamisel ootab sama/);
+});
+
+test('A queued obsolete storage event does not block a tab whose latest write is still current', async () => {
+  const h = harness();
+  await h.input(h.answerField(h.id('diagnostic-questions')), '1620');
+  const older = h.storage.get(KEY);
+  await h.input(h.id('diagnostic-questions').querySelector('textarea'), 'My newer saved explanation');
+  const current = h.storage.get(KEY);
+  await h.storageEvent(KEY, older);
+  assert.equal(h.storage.get(KEY), current);
+  assert.match(h.id('save-status').textContent, /Salvestatud selles brauseris/);
+  assert.equal(h.id('geometry-recovery'), null);
+});
+
+test('Malformed JSON remains untouched while new draft and original bytes can both be recovered', async () => {
+  const original = '{"version":1,"diagnostic":{"values":["1620","44"],';
+  const h = harness({storage: new Map([[KEY, original]])});
+  assert.match(h.id('save-status').textContent, /ei saanud lugeda/);
+  await h.input(h.answerField(h.id('diagnostic-questions')), '20');
+  assert.equal(h.storage.get(KEY), original);
+  await h.click('Laadin taastamiskoopia alla', h.id('geometry-recovery'));
+  const recovery = JSON.parse(h.blobs[0].parts.join(''));
+  assert.equal(recovery.originalStoredRaw, original);
+  assert.equal(recovery.currentWindow.diagnostic.values[0], '20');
+});
+
+test('Expired mock primary next step reaches the visible reveal control without revealing answers early', async () => {
+  const seed = E.fresh(DATA); seed.mock = {started:START-36*60000,finished:false,mode:'timed',working:['Before deadline'],marks:[]};
+  const h = harness({storage: new Map([[KEY, JSON.stringify(seed)]])});
+  await h.click('Vaatan lahenduskäike', h.id('coach-next'));
+  assert.equal(h.document.scrolledTo, 'mock-reveal');
+  assert.equal(h.id('mock-reveal').hidden, false);
+  assert.equal(h.id('mock-key').hidden, true);
+  await h.id('mock-reveal').click();
+  assert.equal(h.id('mock-key').hidden, false);
+});
+
+test('A diagnostic rhombus-area error selects the same exact skill and freezes numeric answers before method choices', async () => {
+  const h=harness({targeted:true}), values=DATA.diagnostic.map(q=>String(q.answer));values[5]='10';values[3]='20';
+  await h.fillDiagnostic(values);
+  const bank=require('../src/geometry-sprint-targets.js'),id=h.state().targeted.skills[0],skill=bank.skills[id];
+  assert.ok(h.state().targeted.skills.includes('rhombus_diagonal_area'));
+  assert.ok(h.state().targeted.skills.includes('quadrilateral_missing_angle'));
+  assert.equal(h.answerField(h.id('guided-practice')).getAttribute('aria-label'),skill.practice.prompt);
+  assert.doesNotMatch(h.id('guided-practice').textContent,new RegExp(skill.practice.reason.prompt.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+  await h.input(h.answerField(h.id('guided-practice')),String(skill.practice.answer));
+  await h.submit(h.id('guided-practice').querySelector('form'));
+  const first=h.state().targeted.items[skill.practice.id].attempts[0];
+  assert.equal(first.correct,true);assert.equal(first.help,false);
+  assert.ok(h.id('guided-practice').textContent.includes(skill.practice.reason.prompt));
+  await h.click('Järgmine väike samm',h.id('guided-practice'));
+  assert.equal(h.answerField(h.id('guided-practice')).getAttribute('aria-label'),skill.transfer.prompt);
+  assert.deepEqual(h.state().targeted.items[skill.practice.id].attempts[0],first);
+});
+
+test('Targeted wrong answers allow continuation and optional method help never rewrites the first answer', async () => {
+  const h=harness({targeted:true});await h.fillDiagnostic();
+  const bank=require('../src/geometry-sprint-targets.js'),skill=bank.skills[h.state().targeted.skills[0]];
+  await h.input(h.answerField(h.id('guided-practice')),'-1');await h.submit(h.id('guided-practice').querySelector('form'));
+  const help=h.id('guided-practice').querySelectorAll('details').find(d=>d.textContent.includes('Vajan üht näidet'));
+  help.open=true;await help.emit('toggle');
+  const reasonForm=h.id('guided-practice').querySelectorAll('form').find(f=>f.textContent.includes('Kontrollin põhjendust'));
+  await h.input(h.answerField(reasonForm),String(skill.practice.reason.answer));await h.submit(reasonForm);
+  const saved=h.state().targeted.items[skill.practice.id];
+  assert.equal(saved.attempts[0].correct,false);assert.equal(saved.attempts[0].help,false);
+  assert.equal(saved.method.correct,true);assert.equal(saved.method.help,true);
+  await h.click('Järgmine väike samm',h.id('guided-practice'));
+  assert.equal(h.answerField(h.id('guided-practice')).getAttribute('aria-label'),skill.transfer.prompt);
+  const reloaded=h.reload();assert.equal(reloaded.answerField(reloaded.id('guided-practice')).getAttribute('aria-label'),skill.transfer.prompt);
+});
+
+test('All-blank targeted route remains unassessed and old unfinished practice keeps its original question', async () => {
+  const h=harness({targeted:true});await h.fillDiagnostic(Array(8).fill(''));await h.id('diagnostic-unassessed').click();
+  assert.ok(h.state().targeted.skills.length===2);assert.ok(h.state().diagnostic.submitted.values.every(v=>v===''));
+  const old=E.fresh(DATA);old.diagnostic.submitted={values:DATA.diagnostic.map(q=>String(q.answer)),working:[],at:START};old.practice.angles=[{value:'8',working:'Old draft',attempts:[]}];
+  const legacy=harness({targeted:true,storage:new Map([[KEY,JSON.stringify(old)]])});
+  assert.equal(legacy.state().targeted,undefined);assert.equal(legacy.answerField(legacy.id('guided-practice')).getAttribute('aria-label'),DATA.lessons.find(l=>l.topic==='angles').practice[0].prompt);
+});
+
+test('Legacy-only migration persists one report identity before upload and reload does not duplicate it',()=>{
+  const reporting={},storage=new Map([['study-pocket-geometry-diagnostic-v1',JSON.stringify(DATA.diagnostic.map(q=>String(q.answer)))]]);
+  const h=harness({reporting,storage}),key='hendrik-geometry-sprint-v1';
+  assert.ok(h.state().recordId);assert.equal(reporting[key].sessions.length,8);
+  const ids=reporting[key].sessions.map(x=>x.id);h.reload();assert.deepEqual(reporting[key].sessions.map(x=>x.id),ids);
+  assert.ok(reporting[key].sessions.every(x=>x.submittedAt===null));
+});
+
+test('Unsupported coach version stays untouched and failed saves do not upload in-memory results',async()=>{
+  const raw=JSON.stringify({version:2,diagnostic:{values:['private old draft']},practice:{}}),reporting={};
+  const h=harness({storage:new Map([[KEY,raw]]),reporting});assert.equal(h.storage.get(KEY),raw);assert.deepEqual(reporting,{});assert.match(h.id('save-status').textContent,/ei saanud lugeda/);
+  const failed=harness({storageFailure:true,reporting:{}});await failed.fillDiagnostic();assert.deepEqual(failed.storage.size,0);
 });

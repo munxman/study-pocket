@@ -60,6 +60,37 @@
     return { version: 1, diagnostic: { values: valuesFor([], data), working: valuesFor([], data), index: 0, submitted: null }, practice: {}, mock: null };
   }
 
+  function targetPlan(state, data, bank, now) {
+    if (!state?.diagnostic?.submitted || !plain(bank?.skills)) return null;
+    const rank = rankTopics(data, state.diagnostic.submitted.values);
+    const skills = rank.topics.map(topic => {
+      const candidates = Object.values(bank.skills).filter(s => s.topic === topic && Number.isInteger(s.diagnosticIndex));
+      const priority = s => {
+        const value = state.diagnostic.submitted.values[s.diagnosticIndex] || '';
+        return !value.trim() ? 1 : matches(questions(data)[s.diagnosticIndex], value) ? 2 : 0;
+      };
+      return candidates.sort((a,b) => priority(a)-priority(b) || a.diagnosticIndex-b.diagnosticIndex)[0]?.id;
+    }).filter(Boolean);
+    return skills.length ? { version: 1, skills, items: {}, createdAt: Number.isFinite(now) ? now : null } : null;
+  }
+
+  function targetQuestion(bank, id) {
+    for (const skill of Object.values(bank?.skills || {})) for (const phase of ['practice','transfer','reserve']) {
+      if (skill[phase]?.id === id) return { skill, phase, question: skill[phase] };
+    }
+    return null;
+  }
+
+  function restoreTargets(raw) {
+    if (!plain(raw) || raw.version !== 1 || !Array.isArray(raw.skills)) return null;
+    const target = { ...clone(raw), skills: [...new Set(raw.skills.filter(x => typeof x === 'string' && /^[a-z0-9_-]{1,100}$/.test(x)))].slice(0,2), items: {} };
+    for (const id of safeKeys(plain(raw.items) ? raw.items : {})) {
+      const item = raw.items[id]; if (!/^[a-zA-Z0-9_:-]{1,180}$/.test(id) || !plain(item)) continue;
+      target.items[id] = { ...clone(item), value: text(item.value), working: text(item.working), attempts: Array.isArray(item.attempts) ? item.attempts.filter(a => plain(a) && typeof a.correct === 'boolean').map(clone) : [] };
+    }
+    return target;
+  }
+
   function submittedSnapshot(raw, data) {
     if (!plain(raw) || !Array.isArray(raw.values) || raw.values.length !== questions(data).length) return null;
     const values = valuesFor(raw.values, data), rank = rankTopics(data, values);
@@ -79,7 +110,9 @@
     const state = fresh(data);
     const valid = plain(raw) && raw.version === 1 && plain(raw.diagnostic);
     if (valid) {
+      if (typeof raw.recordId === 'string' && /^[A-Za-z0-9_:-]{1,100}$/.test(raw.recordId)) state.recordId = raw.recordId;
       state.diagnostic.values = valuesFor(raw.diagnostic.values, data);
+      if (Number.isSafeInteger(raw.diagnostic.updatedAt) && raw.diagnostic.updatedAt > 0) state.diagnostic.updatedAt = raw.diagnostic.updatedAt;
       state.diagnostic.working = valuesFor(raw.diagnostic.working, data);
       const index = Number.isInteger(raw.diagnostic.index) ? raw.diagnostic.index : 0;
       state.diagnostic.index = Math.max(0, Math.min(questions(data).length - 1, index));
@@ -97,6 +130,7 @@
         }
       }
       state.mock = validMock(raw.mock);
+      const targeted = restoreTargets(raw.targeted); if (targeted) state.targeted = targeted;
       return state;
     }
     if (Array.isArray(legacyDiagnostic) && legacyDiagnostic.length === questions(data).length) {
@@ -107,12 +141,23 @@
     return state;
   }
 
-  function nextStep(state, data) {
+  function nextStep(state, data, bank = root.GeometrySprintTargets) {
     const safe = restore(state, data);
     // A started paper remains the active task; ordinary short practice never
     // silently pauses or restarts its wall-clock assessment timer.
     if (safe.mock) return { kind: safe.mock.finished ? 'review' : 'mock' };
     if (!safe.diagnostic.submitted) return { kind: 'diagnostic', index: safe.diagnostic.index };
+    if (safe.targeted && bank?.skills) {
+      for (const id of safe.targeted.skills) {
+        const skill = bank.skills[id]; if (!skill) continue;
+        for (const phase of ['practice','transfer']) {
+          const q = skill[phase]; if (!q) continue;
+          const item = safe.targeted.items[q.id];
+          if (!item?.attempts.length && !(Number.isFinite(item?.deferredAt) && item.deferredAt > 0)) return { kind: 'target', skill: id, phase, questionId: q.id, topic: skill.topic };
+        }
+      }
+      return { kind: 'mock' };
+    }
     for (const topic of safe.diagnostic.submitted.topics) {
       const lesson = Array.isArray(data?.lessons) ? data.lessons.find((item) => item.topic === topic) : null;
       const count = Math.min(2, Array.isArray(lesson?.practice) ? lesson.practice.length : 0);
@@ -125,7 +170,7 @@
     return { kind: 'mock' };
   }
 
-  const api = { fresh, restore, rankTopics, matches, nextStep };
+  const api = { fresh, restore, rankTopics, matches, nextStep, targetPlan, targetQuestion };
   root.GeometrySprintEngine = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

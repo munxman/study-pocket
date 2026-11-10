@@ -1,6 +1,6 @@
 'use strict';
 (function(root){
-  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1','hendrik-maths-v1','hendrik-physics-v1','hendrik-chemistry-v1','hendrik-video-practice-v1'];
+  const keys=['hendrik-imat-bio-v1','hendrik-bioloogia-v1','hendrik-akadeemiline-v1','hendrik-tekst-v1','hendrik-nerves-feedback-v1','hendrik-bio-basics-v1','hendrik-ielts-v1','hendrik-study-chain-v1','hendrik-imat-trial-v1','hendrik-maths-v1','hendrik-physics-v1','hendrik-chemistry-v1','hendrik-video-practice-v1','hendrik-geometry-sprint-v1'];
   const clone=x=>x===undefined?undefined:JSON.parse(JSON.stringify(x));
   const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   const object=x=>x&&typeof x==='object'&&!Array.isArray(x);
@@ -110,6 +110,7 @@ function mergeVideo(base,local,remote){
 }
 
   function merge(module,base,local,remote){
+    if(module==='hendrik-geometry-sprint-v1')return (root.GeometryReportModel||(typeof require==='function'?require('./geometry-report-model.js'):null)).merge(base,local,remote);
     if(module==='hendrik-video-practice-v1')return mergeVideo(base,local,remote);
     if(module==='hendrik-imat-trial-v1')return mergeTrial(base,local,remote);
     if(module==='hendrik-study-chain-v1'){

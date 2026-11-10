@@ -1,19 +1,32 @@
 <!doctype html>
 <html lang="et">
 <head>
+  <script src="./pair-entry.js"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive">
   <meta name="theme-color" content="#126b62">
   <title>Nelinurgad ja hulknurgad · Õpitasku</title>
   <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./backup.css">
   <link rel="stylesheet" href="./geometry-sprint.css">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./study-icon-192.png">
   <script src="./geometry-sprint-content.js" defer></script>
+  <script src="./geometry-sprint-targets.js" defer></script>
   <script src="./geometry-sprint-engine.js" defer></script>
+  <script src="./geometry-target-ui.js" defer></script>
+  <script src="./geometry-report-model.js" defer></script>
+  <script src="./geometry-report-adapter.js" defer></script>
+  <script src="./ielts-engine.js" defer></script>
+  <script src="./sync-model.js" defer></script>
+  <script src="./backup-model.js" defer></script>
+  <script src="./backup-storage.js" defer></script>
+  <script src="./backup-sync.js" defer></script>
+  <script src="./pocket-update.js" defer></script>
+  <script src="./backup-client.js" defer></script>
   <script src="./geometry-sprint.js" defer></script>
-</head>
+<script src="./geometry-local-backup.js" defer></script><script src="./geometry-backup-ui.js" defer></script></head>
 <body>
   <a class="skip" href="#eeldiagnoos">Liigu eeldiagnoosini</a>
   <header class="sprint-top"><a href="./index.html">‹ Õpitasku</a><span>Lai matemaatika</span></header>
@@ -82,7 +95,7 @@
 
     <details class="sprint-panel">
       <summary id="share-title">Minu töö koopia · soovi korral</summary>
-      <p>Vastuste järgi valitakse järgmine samm siin äpis. Paberit ega fotot ei ole vaja saata. See geomeetriamoodul hoiab vastused ja mustandid ainult selles brauseris. Soovi korral võid salvestada koopia või jagada oma mõttekäiku vestluses; õppimine jätkub ka jagamiseta.</p>
+      <p>Vastuste järgi valitakse järgmine samm siin äpis. Paberit ega fotot ei ole vaja saata. Mõttekäigud ja mustandid jäävad sellesse brauserisse. Kui äpp on privaatselt ühendatud, saadetakse kontole ülesannete viited, õiged/valed vastused ja abi kasutamine; sinu teksti, vastusevalikut ega heli ei saadeta. Soovi korral võid salvestada koopia või jagada oma mõttekäiku vestluses; õppimine jätkub ka jagamiseta.</p>
       <div class="sprint-actions"><button id="copy-work" class="secondary" type="button">Kopeerin töö ülevaatuseks</button><button id="download-work" class="secondary" type="button">Laadin oma töö tekstifailina alla</button></div>
       <p id="share-status" role="status"></p><textarea id="share-text" aria-label="Minu töö jagamiseks" rows="8" readonly hidden></textarea>
     </details>
@@ -116,7 +129,7 @@
         <figcaption>Võrdhaarsel trapetsil on pikema aluse üleulatus mõlemas otsas sama.</figcaption>
       </figure>
     </template>
-  </main>
+  <section class="sprint-panel backup-card" id="geometry-local-copy"></section></main>
   <noscript><p class="sprint-noscript">Vastuste kontrolliks luba JavaScript.</p></noscript>
 </body>
 </html>

@@ -118,7 +118,7 @@ globalThis.GeometrySprintContent = {
           prompt: "Rööpküliku diagonaalid on risti. Millise liigi saab kindlasti järeldada?",
           choices: ["Ristkülik", "Romb", "Ruut", "Võrdhaarne trapets"],
           answer: 1,
-          explanation: "Diagonaalid poolitavad teineteist. Pooldiagonaalidest tekkinud neli täisnurkset kolmnurka on võrdsete kaatetitega, seega on nende hüpotenuusid ehk rööpküliku küljed võrdsed.",
+          explanation: "Diagonaalid poolitavad teineteist. Pooldiagonaalidest tekkinud neli täisnurkset kolmnurka on paarikaupa võrdsete vastavate kaatetitega, seega on nende hüpotenuusid ehk rööpküliku küljed võrdsed.",
         },
       ],
     },
