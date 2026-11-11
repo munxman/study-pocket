@@ -16,6 +16,18 @@ self.addEventListener('message',event=>{
  const reply=value=>event.ports?.[0]?.postMessage(value);
  if(event.data?.type==='status')event.waitUntil(status().then(reply));
  if(event.data?.type==='activate'){self.skipWaiting();reply({ok:true});}
+ // Automatic entry has stricter rules than an explicit in-study update.
+ if(event.data?.type==='activate-from-start')event.waitUntil((async()=>{try{
+  const source=event.source;
+  if(!source?.id||source.type!=='window'||source.url!==absolute('start.html'))return reply({error:'invalid_entry'});
+  if(event.data.release!==RELEASE||!await complete(await caches.open(CACHE)))return reply({error:'release_mismatch'});
+  const live=await self.clients.get(source.id);
+  if(!live||live.type!=='window'||live.url!==absolute('start.html'))return reply({error:'invalid_entry'});
+  const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  if(!windows.some(client=>client.id===source.id&&client.url===absolute('start.html')))return reply({error:'invalid_entry'});
+  if(windows.some(client=>client.id!==source.id&&client.url.startsWith(base)))return reply({error:'other_windows'});
+  await self.skipWaiting();reply({ok:true,release:RELEASE});
+ }catch{reply({error:'activation_refused'});}})());
  if(event.data?.type==='download')event.waitUntil((async()=>{try{if(!download)download=(async()=>{const cache=await caches.open(CACHE);for(const a of PACK.filter(a=>a.group==='audio')){if(!await cache.match(absolute(a.path)))await cache.put(absolute(a.path),await verified(a));reply({progress:true,...await status()});}})().finally(()=>download=null);await download;reply({done:true,...await status()});}catch(e){reply({error:String(e.message||e),...await status()});}})());
 });
 function range(header,size){const m=/^bytes=(\d*)-(\d*)$/.exec(header||'');if(!m||(!m[1]&&!m[2]))return null;let start=m[1]?Number(m[1]):Math.max(0,size-Number(m[2])),end=m[1]&&m[2]?Math.min(size-1,Number(m[2])):size-1;if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||start>=size||end<start)return null;return {start,end};}
