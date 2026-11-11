@@ -17,7 +17,12 @@ async function run({active=OLD,waiting=LATEST,offline=false,networkFailure=false
    if(data.type==='status')ports[0].postMessage({release:this.release,core});
    if(data.type==='activate-from-start'){
     if(refusal)return ports[0].postMessage({error:refusal});
-    reg.active=this;reg.waiting=null;sw.controller=this;this.state='activated';sw.emit('controllerchange');
+    reg.active=this;reg.waiting=null;this.state='activated';this.emit('statechange');
+    ports[0].postMessage({ok:true,release:this.release});
+   }
+   if(data.type==='claim-from-start'){
+    if(refusal)return ports[0].postMessage({error:refusal});
+    sw.controller=this;sw.emit('controllerchange');
     ports[0].postMessage({ok:true,release:this.release});
    }
   }
@@ -26,7 +31,7 @@ async function run({active=OLD,waiting=LATEST,offline=false,networkFailure=false
  reg.update=async()=>{
   updateCalls++;
   if(replaceWaiting){const worker=new Worker(LATEST,'installing');reg.installing=worker;reg.emit('updatefound');setImmediate(()=>{reg.waiting=worker;reg.installing=null;worker.state='installed';worker.emit('statechange');});}
-  if(fresh){const worker=new Worker(LATEST,'installing');reg.installing=worker;setImmediate(()=>{reg.active=worker;reg.installing=null;worker.state='activated';worker.emit('statechange');sw.controller=worker;sw.emit('controllerchange');});}
+  if(fresh){const worker=new Worker(LATEST,'installing');reg.installing=worker;setImmediate(()=>{reg.active=worker;reg.installing=null;worker.state='activated';worker.emit('statechange');});}
  };
  sw.register=async(url,options)=>{registerCalls++;assert.equal(url,BASE+'backup-sw.js');assert.equal(options.scope,BASE);assert.equal(options.updateViaCache,'none');if(registrationFailure)throw Error('registration_failed');return reg;};
  const nodes={'start-state':{textContent:'Avan õppimist…'},'start-fallback':{hidden:true},'start-recheck':{hidden:true,disabled:false}};
@@ -56,7 +61,11 @@ test('an old waiting worker can be superseded by a fully installed current worke
  const h=await run({waiting:OLD,replaceWaiting:true});assert.deepEqual(h.navigations,[BASE+'index.html']);assert.equal(h.messages.filter(x=>x.type==='activate-from-start')[0].release,LATEST);
 });
 test('initial installation waits for controller ownership before opening the verified pack',async()=>{
- const h=await run({active:null,waiting:null,fresh:true});assert.deepEqual(h.navigations,[BASE+'index.html']);assert.equal(h.sw.controller,h.reg.active);assert.equal(h.messages.filter(x=>x.type.startsWith('activate')).length,0);
+ const h=await run({active:null,waiting:null,fresh:true});assert.deepEqual(h.navigations,[BASE+'index.html']);assert.equal(h.sw.controller,h.reg.active);assert.equal(h.messages.filter(x=>x.type.startsWith('activate')).length,0);assert.equal(h.messages.filter(x=>x.type==='claim-from-start').length,1);
+});
+test('first installation with another uncontrolled tab cannot claim or open study until explicit recheck',async()=>{
+ const h=await run({active:null,waiting:null,fresh:true,refusal:'other_windows'});assert.deepEqual(h.navigations,[]);assert.equal(h.sw.controller,null);assert.equal(h.reg.active.release,LATEST);assert.equal(h.nodes['start-recheck'].hidden,false);assert.equal(h.messages.filter(x=>x.type==='activate-from-start').length,0);
+ h.allowActivation();await h.recheck();assert.deepEqual(h.navigations,[BASE+'index.html']);assert.equal(h.updateCalls,1);assert.equal(h.messages.filter(x=>x.type==='claim-from-start').length,2);
 });
 test('offline and network errors offer existing study without automatic navigation or retries',async()=>{
  for(const options of [{offline:true},{networkFailure:true}]){const h=await run(options);assert.deepEqual(h.navigations,[]);assert.equal(h.registerCalls,0);assert.equal(h.nodes['start-fallback'].hidden,false);assert.ok(h.fetches.length<=1);assert.equal(h.storageAccesses,0);}

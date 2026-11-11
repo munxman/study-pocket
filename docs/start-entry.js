@@ -35,9 +35,21 @@
   });promise.catch(()=>{});return {promise,dispose:()=>dispose()};
  }
  function enter(){location.replace(new URL('index.html',base).href);}
+ function activated(reg,worker){return new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>finish(Error('activation_timeout')),30000);
+  function finish(error){clearTimeout(timer);worker.removeEventListener('statechange',check);error?reject(error):resolve();}
+  function check(){if(worker.state==='redundant')finish(Error('activation_failed'));else if(worker.state==='activated'&&reg.active===worker)finish();}
+  worker.addEventListener('statechange',check);check();
+ });}
  async function activate(reg,worker,release){
   retry={reg,worker,release};const ready=controller(reg,worker);
-  try{const result=await message(worker,{type:'activate-from-start',release});if(!result?.ok)throw Error(result?.error||'activation_refused');await ready.promise;}finally{ready.dispose();}
+  try{
+   if(reg.waiting===worker){const result=await message(worker,{type:'activate-from-start',release});if(!result?.ok)throw Error(result?.error||'activation_refused');}
+   else if(reg.active!==worker)throw Error('release_mismatch');
+   await activated(reg,worker);
+   const result=await message(worker,{type:'claim-from-start',release});if(!result?.ok)throw Error(result?.error||'activation_refused');
+   await ready.promise;
+  }finally{ready.dispose();}
  }
  async function confirm(reg,release){if(await published()!==release||!(await current(reg,release)))throw Error('release_mismatch');enter();}
  recheck.onclick=async()=>{
@@ -45,7 +57,7 @@
   try{
    const {reg,worker,release}=retry,latest=await published();
    if(await current(reg,latest))return enter();
-   if(latest!==release||reg.waiting!==worker||!(await verified(worker,release)))throw Error('release_mismatch');
+   if(latest!==release||(reg.waiting!==worker&&reg.active!==worker)||!(await verified(worker,release)))throw Error('release_mismatch');
    await activate(reg,worker,release);await confirm(reg,release);
   }catch(error){fail(error.message);}finally{recheck.disabled=false;}
  };
@@ -63,7 +75,7 @@
     if(!(await verified(worker,release)))throw Error('release_mismatch');
     await activate(reg,worker,release);
    }else if(reg.active&&await verified(reg.active,release)){
-    const ready=controller(reg,reg.active);try{await ready.promise;}finally{ready.dispose();}
+    await activate(reg,reg.active,release);
    }else throw Error('release_mismatch');
   }
   // A waiting worker may predate the published pack; only the controlling, complete current pack may open study.

@@ -2,6 +2,17 @@
 const RELEASE=__RELEASE__,PACK=__PACK__,CACHE='study-pocket-pack-'+RELEASE;
 const base=self.registration.scope,absolute=p=>new URL(p,base).href,marker=absolute('__complete__');
 async function complete(cache){return !!(await cache.match(marker));}
+let acceptedStart=null;
+async function startGuard(source,release){
+ if(!source?.id||source.type!=='window'||source.url!==absolute('start.html'))return 'invalid_entry';
+ if(release!==RELEASE||!await complete(await caches.open(CACHE)))return 'release_mismatch';
+ const live=await self.clients.get(source.id);
+ if(!live||live.type!=='window'||live.url!==absolute('start.html'))return 'invalid_entry';
+ const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+ if(!windows.some(client=>client.id===source.id&&client.url===absolute('start.html')))return 'invalid_entry';
+ if(windows.some(client=>client.id!==source.id&&client.url.startsWith(base)))return 'other_windows';
+ return null;
+}
 async function checked(asset,r){if(!r.ok||r.redirected)throw Error('Download failed: '+asset.path);const bytes=await r.arrayBuffer();if(bytes.byteLength!==asset.size)throw Error('Incomplete download: '+asset.path);const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');if(hash!==asset.sha256)throw Error('Version mismatch: '+asset.path);return new Response(bytes,{status:200,headers:r.headers});}
 async function verified(asset){const r=await fetch(absolute(asset.path),{cache:'reload',redirect:'error'});if(r.url!==absolute(asset.path))throw Error('Unexpected address');return checked(asset,r);}
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);if(await complete(cache))return;try{for(const a of PACK.filter(a=>a.group==='core'))await cache.put(absolute(a.path),await verified(a));await cache.put(marker,new Response(RELEASE));}catch(e){await caches.delete(CACHE);throw e;}
@@ -9,7 +20,14 @@ self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=aw
  const older=(await caches.keys()).filter(k=>k.startsWith('study-pocket-pack-')&&k!==CACHE).reverse();
  for(const a of PACK.filter(a=>a.group==='audio'))for(const name of older){try{const old=await caches.open(name),hit=await old.match(absolute(a.path));if(hit){await cache.put(absolute(a.path),await checked(a,hit));break;}}catch{/* A missing or incompatible old audio file remains downloadable. */}}
 })()));
-self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+ // Older cached entry scripts only request activation. Recheck their accepted request before claiming.
+ if(acceptedStart){try{if(!await startGuard(acceptedStart,RELEASE))await self.clients.claim();}catch{}return;}
+ // A first installation activates naturally. Cold entry must still pass its window guard before claiming clients.
+ const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+ if(windows.some(client=>client.url.split(/[?#]/,1)[0]===absolute('start.html')))return;
+ await self.clients.claim();
+})()));
 async function status(){const cache=await caches.open(CACHE);let audio=0;for(const a of PACK.filter(a=>a.group==='audio'))if(await cache.match(absolute(a.path)))audio++;return {release:RELEASE,core:await complete(cache),audio,totalAudio:PACK.filter(a=>a.group==='audio').length};}
 let download=null;
 self.addEventListener('message',event=>{
@@ -17,16 +35,10 @@ self.addEventListener('message',event=>{
  if(event.data?.type==='status')event.waitUntil(status().then(reply));
  if(event.data?.type==='activate'){self.skipWaiting();reply({ok:true});}
  // Automatic entry has stricter rules than an explicit in-study update.
- if(event.data?.type==='activate-from-start')event.waitUntil((async()=>{try{
-  const source=event.source;
-  if(!source?.id||source.type!=='window'||source.url!==absolute('start.html'))return reply({error:'invalid_entry'});
-  if(event.data.release!==RELEASE||!await complete(await caches.open(CACHE)))return reply({error:'release_mismatch'});
-  const live=await self.clients.get(source.id);
-  if(!live||live.type!=='window'||live.url!==absolute('start.html'))return reply({error:'invalid_entry'});
-  const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
-  if(!windows.some(client=>client.id===source.id&&client.url===absolute('start.html')))return reply({error:'invalid_entry'});
-  if(windows.some(client=>client.id!==source.id&&client.url.startsWith(base)))return reply({error:'other_windows'});
-  await self.skipWaiting();reply({ok:true,release:RELEASE});
+ if(['activate-from-start','claim-from-start'].includes(event.data?.type))event.waitUntil((async()=>{try{
+  const source=event.source,error=await startGuard(source,event.data.release);if(error)return reply({error});
+  if(event.data.type==='activate-from-start'){acceptedStart={id:source.id,type:source.type,url:source.url};await self.skipWaiting();}else await self.clients.claim();
+  reply({ok:true,release:RELEASE});
  }catch{reply({error:'activation_refused'});}})());
  if(event.data?.type==='download')event.waitUntil((async()=>{try{if(!download)download=(async()=>{const cache=await caches.open(CACHE);for(const a of PACK.filter(a=>a.group==='audio')){if(!await cache.match(absolute(a.path)))await cache.put(absolute(a.path),await verified(a));reply({progress:true,...await status()});}})().finally(()=>download=null);await download;reply({done:true,...await status()});}catch(e){reply({error:String(e.message||e),...await status()});}})());
 });
