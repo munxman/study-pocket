@@ -1,10 +1,32 @@
 // Read-only, bounded reporting. Event dates come from saved device timestamps,
 // never from the module's most recent server upload. No drafts or raw answers.
+import '../quant-content.js';
+import '../chemistry-content.js';
 export const ZONE='Europe/Tallinn';
 const list=x=>Array.isArray(x)?x:[];
 const unique=xs=>[...new Map(xs.filter(x=>x&&typeof x.id==='string').map(x=>[x.id,x])).values()];
 const safe=x=>typeof x==='string'?x.slice(0,120):null;
 const bool=x=>typeof x==='boolean'?x:null;
+// Content indices are append-only. Historical labels describe the authored item,
+// not a retroactively assigned route, score, or delayed-retrieval classification.
+const quantBanks=Object.fromEntries([...Object.values(globalThis.QuantContent?.subjects||{}),globalThis.ChemistryContent].filter(Boolean).map(b=>[b.key,b]));
+export function quantSkillDetail(module,s){
+ const topic=quantBanks[module]?.topics.find(t=>t.id===s.concept);
+ // Version-one banks had exactly six items. An unknown old index must not
+ // acquire a label merely because a later content release appended that index.
+ const authored=index=>Number.isInteger(index)&&index>=0&&index<6?safe(topic?.questions[index]?.skill):null;
+ let initialSkill=null,checkSkill=null,routingVersion=null,routeIndex=null;
+ if(s.routingVersion===undefined){initialSkill=authored(s.questionIndex);checkSkill=authored(s.checkIndex);}
+ else if(s.routingVersion===1&&topic?.followupVersion===1&&Number.isInteger(s.routeIndex)){
+  const route=topic.followups?.[s.routeIndex],indices=route?[s.routeIndex,route.simpleIndex,route.applicationIndex]:[];
+  // Return authored identifiers only after the saved item and route agree.
+  // Untrusted strings must never become an apparent skill label in reports.
+  if(route&&indices.includes(s.questionIndex)&&indices.includes(s.checkIndex)&&topic.questions[s.questionIndex]?.skill===route.skill&&topic.questions[s.checkIndex]?.skill===route.skill&&s.initialSkill===route.skill&&s.checkSkill===route.skill){
+   initialSkill=checkSkill=safe(route.skill);routingVersion=1;routeIndex=s.routeIndex;
+  }
+ }
+ return {initialSkill,checkSkill,routingVersion,routeIndex,checkRepeatedQuestion:bool(s.checkRepeatedQuestion),contentVersion:Number.isSafeInteger(s.contentVersion)?s.contentVersion:null};
+}
 export const normalizeGuestName=value=>typeof value==='string'?value.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,'').replace(/\s+/g,' ').trim():'';
 export const trialParticipantName=s=>s.participant==='guest'?(normalizeGuestName(s.participantName).slice(0,60).replace(/[\uD800-\uDBFF]$/,'')||null):null;
 export const localDay=t=>new Intl.DateTimeFormat('sv-SE',{timeZone:ZONE}).format(t);
@@ -35,8 +57,9 @@ export function eventsFor(modules,now=Date.now()){
    }
    }else if(['hendrik-maths-v1','hendrik-physics-v1','hendrik-chemistry-v1'].includes(module)){
    for(const s of unique(list(data.sessions))){
-    if(typeof s.correct==='boolean')add(module,s,'first_answer',s.answeredAt,{correct:s.correct,confidence:safe(s.confidence),unknown:!!s.unknown,questionIndex:Number.isInteger(s.questionIndex)?s.questionIndex:null,initialProbe:bool(s.initialProbe),delayedProbe:s.delayedProbe===true&&!s.assisted,independent:!s.assisted,repeatedQuestion:bool(s.repeatedQuestion),contentVersion:s.contentVersion||null});
-    if(typeof s.checkCorrect==='boolean')add(module,s,'immediate_check',s.checkAnsweredAt||s.completedAt,{correct:s.checkCorrect,questionIndex:Number.isInteger(s.checkIndex)?s.checkIndex:null,independent:false},s.checkAnsweredAt?'device_event':'session_completion_proxy');
+    const detail=quantSkillDetail(module,s);
+    if(typeof s.correct==='boolean')add(module,s,'first_answer',s.answeredAt,{...detail,skill:detail.initialSkill,correct:s.correct,confidence:safe(s.confidence),unknown:!!s.unknown,questionIndex:Number.isInteger(s.questionIndex)?s.questionIndex:null,initialProbe:bool(s.initialProbe),delayedProbe:s.delayedProbe===true&&!s.assisted,independent:!s.assisted,repeatedQuestion:bool(s.repeatedQuestion)});
+    if(typeof s.checkCorrect==='boolean')add(module,s,'immediate_check',s.checkAnsweredAt||s.completedAt,{...detail,skill:detail.checkSkill,correct:s.checkCorrect,questionIndex:Number.isInteger(s.checkIndex)?s.checkIndex:null,independent:false},s.checkAnsweredAt?'device_event':'session_completion_proxy');
     if(s.completedAt)add(module,s,'completed_block',s.completedAt,{moreChosen:!!s.moreChosen});
     else add(module,s,s.answeredAt?'unfinished':'opened_only',s.answeredAt||s.startedAt,{isStudyEvidence:false},s.answeredAt?'last_known_answer':'device_event');
    }

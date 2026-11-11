@@ -11,7 +11,7 @@ const answer = (id, index) => {
   return question.options[question.answer];
 };
 
-test('chemistry is a separate compatible subject with four complete six-question topics', () => {
+test('chemistry is a separate compatible subject with four preserved topics with complete matched follow-ups', () => {
   assert.equal(Chemistry.key, 'hendrik-chemistry-v1');
   assert.equal(Chemistry.title, 'Keemia · Chemistry');
   assert.equal(Chemistry.version, 1);
@@ -25,7 +25,7 @@ test('chemistry is a separate compatible subject with four complete six-question
     assert.ok(t.worked.prompt && t.worked.answer && t.worked.steps.length >= 3);
     assert.ok(t.sources.length >= 2);
     assert.ok(t.sources.every(source => source.title && new URL(source.url).protocol === 'https:'));
-    assert.equal(t.questions.length, 6);
+    assert.ok(t.questions.length >= 6);
     for (const q of t.questions) {
       assert.ok(q.prompt && q.explanation && q.skill);
       assert.equal(q.options.length, 4);
@@ -35,7 +35,7 @@ test('chemistry is a separate compatible subject with four complete six-question
       prompts.add(q.prompt);
     }
   }
-  assert.equal(prompts.size, 24);
+  assert.equal(prompts.size, Chemistry.topics.reduce((n,t)=>n+t.questions.length,0));
 });
 
 test('browser UMD exposes the same subject contract without CommonJS', () => {

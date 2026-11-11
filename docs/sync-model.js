@@ -109,8 +109,82 @@ function mergeVideo(base,local,remote){
  return out;
 }
 
+// Quantitative records contain two separate immutable observations. Select a
+// coherent branch before retaining progress; field-by-field merging can attach
+// one device's answer to another question or a different follow-up.
+function quantRecord(base,local,remote){
+ if(!local&&!remote)return clone(base);
+ if(!base&&(!local||!remote))return clone(local||remote);
+ if(same(local,remote)&&(!base||same(base,local)))return clone(local);
+ const identity=base||remote||local;
+ const identityFields=['id','kind','concept','startedAt','questionIndex','initialSkill','routingVersion','routeIndex','contentVersion','initialProbe','repeatedQuestion','delayedEligibleAtStart'];
+ const firstFields=['selected','confidence','unknown','correct','answeredAt','checkIndex','checkSkill','checkRepeatedQuestion'];
+ const checkFields=['checkSelected','checkCorrect','checkAnsweredAt','completedAt'];
+ const matches=(a,b,fields)=>fields.every(k=>same(a?.[k],b?.[k]));
+ const freeze=(out,source,fields)=>{for(const k of fields){if(Object.hasOwn(source,k))out[k]=clone(source[k]);else delete out[k];}};
+ const candidates=[remote,local,base].filter(s=>s&&matches(s,identity,identityFields));
+ const chronological=field=>(a,b)=>(a[field]||Infinity)-(b[field]||Infinity)||JSON.stringify(a).localeCompare(JSON.stringify(b));
+ const first=base?.answeredAt?base:candidates.filter(s=>s.answeredAt).sort(chronological('answeredAt'))[0];
+ let coherent=first?candidates.filter(s=>s.answeredAt&&matches(s,first,firstFields)):candidates;
+ const completed=s=>!!s.completedAt&&typeof s.checkCorrect==='boolean';
+ const check=completed(base||{})?base:coherent.filter(completed).sort((a,b)=>(a.checkAnsweredAt||a.completedAt)-(b.checkAnsweredAt||b.completedAt)||JSON.stringify(a).localeCompare(JSON.stringify(b)))[0];
+ if(check)coherent=coherent.filter(s=>completed(s)&&matches(s,check,checkFields));
+ // Preserve each draft's selection, confidence and stage together. Prefer actual
+ // progress, then a changed branch, without combining conflicting drafts.
+ coherent.sort((a,b)=>rank(b)-rank(a)||Number(same(a,base))-Number(same(b,base))||(b.updatedAt||0)-(a.updatedAt||0)||JSON.stringify(a).localeCompare(JSON.stringify(b)));
+ const winner=clone(coherent[0]||check||first||identity);
+ freeze(winner,identity,identityFields);
+ if(first)freeze(winner,first,[...firstFields,'assisted','delayedProbe']);
+ if(check){freeze(winner,check,checkFields);winner.stage=check.stage;}
+ if([local,remote,base].some(s=>s?.moreChosen))winner.moreChosen=true;
+ if(coherent.some(s=>s.closed))winner.closed=true;
+ // Help before the chosen first answer can only reduce independence. Older
+ // assisted answers lack a reliable help time because submit overwrote taughtAt;
+ // retain that support conservatively instead of inventing an unaided answer.
+ const helps=candidates.filter(s=>{
+  if(!s.assisted)return false;
+  const at=s.helpedAt||(!s.answeredAt?s.taughtAt:0);
+  return !winner.answeredAt||!at||at<=winner.answeredAt;
+ });
+ if(helps.length){
+  winner.assisted=true;
+  if(!first?.assisted)winner.delayedProbe=false;
+  if(Object.hasOwn(winner,'independent'))winner.independent=false;
+  const times=helps.map(s=>s.helpedAt).filter(t=>Number.isFinite(t)&&t>0);
+  if(times.length)winner.helpedAt=Math.min(...times);
+ }
+ return winner;
+}
+function mergeQuant(base,local,remote){
+ if(!local)return clone(remote);if(!remote)return clone(local);
+ const out=mergeObject(base,{...local,sessions:[]},{...remote,sessions:[]});
+ const b=new Map((base?.sessions||[]).map(s=>[s.id,s])),l=new Map((local.sessions||[]).map(s=>[s.id,s])),r=new Map((remote.sessions||[]).map(s=>[s.id,s]));
+ out.sessions=[...new Set([...r.keys(),...l.keys(),...b.keys()])].map(id=>quantRecord(b.get(id),l.get(id),r.get(id))).sort((a,b)=>(a.startedAt||0)-(b.startedAt||0)||String(a.id).localeCompare(String(b.id)));
+ // External teaching is an exposure, even when an older offline client later
+ // uploads a topic card without this newer timestamp field.
+ for(const id of new Set([base,local,remote].flatMap(s=>Object.keys(s?.cards||{})))){
+  const times=[base,local,remote].map(s=>s?.cards?.[id]?.lastExternalExposure).filter(t=>Number.isFinite(t)&&t>0);
+  if(times.length){out.cards[id]||=clone(base?.cards?.[id]||{});out.cards[id].lastExternalExposure=Math.max(...times);}
+ }
+ // Another device may have opened teaching while this routed attempt was
+ // offline. Only new routed records accept this conservative reclassification;
+ // the original answer, question, check and event clocks remain untouched.
+ for(const a of out.sessions){
+  const at=out.cards[a.concept]?.lastExternalExposure;
+  if(a.routingVersion!==1||!Number.isFinite(a.answeredAt)||a.answeredAt<=0||!Number.isFinite(at)||at<=0||at>a.answeredAt)continue;
+  const during=Number.isFinite(a.startedAt)&&a.startedAt>0&&at>=a.startedAt;
+  if(during||a.answeredAt-at<86400000)a.delayedProbe=false;
+  if(during){a.assisted=true;a.helpedAt=Math.min(Number.isFinite(a.helpedAt)&&a.helpedAt>0?a.helpedAt:Infinity,at);}
+ }
+ const current=out.sessions.find(s=>s.id===out.activeId);
+ if(!current||current.closed)out.activeId=null;
+ if(!out.activeId)out.activeId=out.sessions.filter(s=>!s.closed&&s.stage!=='done').at(-1)?.id||null;
+ return out;
+}
+
   function merge(module,base,local,remote){
-    if(module==='hendrik-geometry-sprint-v1')return (root.GeometryReportModel||(typeof require==='function'?require('./geometry-report-model.js'):null)).merge(base,local,remote);
+    if(['hendrik-maths-v1','hendrik-physics-v1','hendrik-chemistry-v1'].includes(module))return mergeQuant(base,local,remote);
+    if(module==='hendrik-geometry-sprint-v1'){const geometry=root.GeometryReportModel||(typeof require==='function'?require('./geometry-report-model.js'):null);if(!geometry)throw Error('Geometry report model unavailable');return geometry.merge(base,local,remote);}
     if(module==='hendrik-video-practice-v1')return mergeVideo(base,local,remote);
     if(module==='hendrik-imat-trial-v1')return mergeTrial(base,local,remote);
     if(module==='hendrik-study-chain-v1'){

@@ -1,10 +1,31 @@
 import { summarizeEnglish } from './ielts-overview.js';
-import { trialParticipantName } from './learning-report.js';
+import { trialParticipantName, quantSkillDetail } from './learning-report.js';
+import '../quant-engine.js';
+const Quant=globalThis.QuantEngine;
+const quantBanks=Object.fromEntries([...Object.values(globalThis.QuantContent?.subjects||{}),globalThis.ChemistryContent].filter(Boolean).map(b=>[b.key,b]));
 const DAY=86400000;
 const array=x=>Array.isArray(x)?x:[];
 const unique=xs=>[...new Map(xs.filter(x=>x&&typeof x.id==='string').map(x=>[x.id,x])).values()];
 const day=t=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Tallinn',year:'numeric',month:'2-digit',day:'2-digit'}).format(t);
 const stats=()=>({attempts:0,correct:0,independent:0,independentCorrect:0,unsure:0,unknown:0,sureWrong:0,checks:0,checkCorrect:0,delayed:0,delayedCorrect:0,delayedSure:0,unclassified:0});
+
+// Exact-skill support needs use the full saved history. A later success in a
+// different skill cannot clear a failure through the shared topic-card cache.
+function quantSupport(key,sessions,c,now,cards){
+ const bank=quantBanks[key],topic=bank?.topics.find(t=>t.id===c.id);
+ if(!bank||!topic)return {...c,unresolvedSkills:[],skillEvidenceUnknown:true};
+ let unknown=false,unknownWrong=false;
+ const past=t=>Number.isFinite(t)&&t>0&&t<=now;
+ const known=sessions.filter(a=>a.concept===c.id).map(a=>{
+  const detail=quantSkillDetail(key,a),first=past(a.answeredAt)&&typeof a.correct==='boolean',check=past(a.checkAnsweredAt||a.completedAt)&&typeof a.checkCorrect==='boolean';
+  if(first&&!detail.initialSkill||check&&!detail.checkSkill)unknown=true;
+  if(first&&!detail.initialSkill&&!a.correct||check&&!detail.checkSkill&&!a.checkCorrect)unknownWrong=true;
+  return {...a,questionIndex:detail.initialSkill?a.questionIndex:-1,checkIndex:detail.checkSkill?a.checkIndex:-1,answeredAt:past(a.answeredAt)?a.answeredAt:0,taughtAt:past(a.taughtAt)?a.taughtAt:0,checkAnsweredAt:past(a.checkAnsweredAt)?a.checkAnsweredAt:0,completedAt:past(a.completedAt)?a.completedAt:0};
+ });
+ const evidence=Object.entries(Quant.skillEvidence({sessions:known,cards:cards||{}},bank,c.id)).filter(([,value])=>value.attempts>0);
+ const unresolvedSkills=evidence.filter(([,value])=>value.needsHelp).map(([skill])=>({skill,title:Object.values(topic.followups||{}).find(r=>r.skill===skill)?.title||null}));
+ return {...c,needsHelp:!!(unresolvedSkills.length||unknownWrong||unknown&&c.needsHelp),unresolvedSkills,skillEvidenceUnknown:unknown,due:evidence.length?Math.min(...evidence.map(([,value])=>value.due)):c.due};
+}
 
 export function summarize(modules,period='7',now=Date.now()) {
   // Rolling 7/30 days; activity is grouped into local Estonian calendar days.
@@ -65,7 +86,7 @@ export function summarize(modules,period='7',now=Date.now()) {
       }
       if(completion){result.completed++;result.more+=a.moreChosen?1:0;touch(a.completedAt,0);}
     }
-    result.concepts=[...concepts.values()].map(c=>({...c,history:c.history.sort((a,b)=>b.at-a.at).slice(0,8)})).sort((a,b)=>Number(b.needsHelp)-Number(a.needsHelp)||(b.attempts-b.correct)-(a.attempts-a.correct)||b.lastAnswer-a.lastAnswer);
+    result.concepts=[...concepts.values()].map(c=>({...(['maths','physics','chemistry'].includes(id)?quantSupport(key,sessions,c,now,data.cards):c),history:c.history.sort((a,b)=>b.at-a.at).slice(0,8)})).sort((a,b)=>Number(b.needsHelp)-Number(a.needsHelp)||(b.attempts-b.correct)-(a.attempts-a.correct)||b.lastAnswer-a.lastAnswer);
     result.supportHistory.sort((a,b)=>b.at-a.at);result.supportHistory=result.supportHistory.slice(0,12);
     report.modules.push(result);
   }

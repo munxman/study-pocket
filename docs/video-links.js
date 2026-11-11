@@ -67,6 +67,13 @@
   const match=candidates.find(x=>x.indices.includes(index));
   return match?bank.videos.find(v=>v.id===match.video)||null:null;
  }
+ function routedIndex(session,domain,phase,index){
+  if(domain==='biology'||session.routingVersion===undefined)return index;
+  if(session.routingVersion!==1||!Number.isInteger(session.routeIndex)||session.routeIndex<0||session.routeIndex>5||!session.initialSkill||session.initialSkill!==session.checkSkill)return null;
+  // New variants retain the authored original skill route. An unrelated skill
+  // does not inherit a video just because it lives in the same broad topic.
+  return session.routeIndex;
+ }
  function observation(session,domain,phase='first'){
   if(!attributable(session))return null;
   if(phase==='check'){
@@ -74,10 +81,10 @@
    const at=validTime(session.checkAnsweredAt)?session.checkAnsweredAt:session.completedAt;
    if(!Number.isInteger(index)||!validTime(at)||typeof session.checkCorrect!=='boolean')return null;
    if(domain==='biology'&&(!Array.isArray(session.retryAnswers)||!session.retryAnswers.length))return null;
-   return {index,at,correct:session.checkCorrect,confidence:null,phase};
+   return {index:routedIndex(session,domain,phase,index),at,correct:session.checkCorrect,confidence:null,phase};
   }
   if(!Number.isInteger(session.questionIndex)||!validTime(session.answeredAt)||typeof session.correct!=='boolean')return null;
-  return {index:session.questionIndex,at:session.answeredAt,correct:session.correct,confidence:session.confidence,phase};
+  return {index:routedIndex(session,domain,phase,session.questionIndex),at:session.answeredAt,correct:session.correct,confidence:session.confidence,phase};
  }
  function contextual(bank,domain,concept,session,phase='first'){
   const item=observation(session,domain,phase);
@@ -135,8 +142,8 @@
    const key=moduleKeys[domain],raw=storage.getItem(key);if(!raw||!ids.length)continue;
    const state=JSON.parse(raw);if(!state||!Array.isArray(state.sessions)||!state.cards||typeof state.cards!=='object')throw Error('Seotud aine salvestus vajab kontrollimist.');
    let changed=false;
-   for(const id of ids){const card=state.cards[id];if(card){card.lastExposure=Math.max(card.lastExposure||0,now);changed=true;}
-    for(const a of state.sessions)if(a.concept===id&&!a.answeredAt&&!a.completedAt){a.assisted=true;a.delayedProbe=false;a.delayedEligibleAtStart=false;changed=true;}
+   for(const id of ids){const card=state.cards[id];if(card){card.lastExposure=Math.max(card.lastExposure||0,now);card.lastExternalExposure=Math.max(card.lastExternalExposure||0,now);changed=true;}
+    for(const a of state.sessions)if(a.concept===id&&!a.answeredAt&&!a.completedAt){a.assisted=true;a.helpedAt=a.helpedAt||now;a.delayedProbe=false;a.delayedEligibleAtStart=false;changed=true;}
    }
    if(changed)writes.push([key,JSON.stringify(state)]);
   }

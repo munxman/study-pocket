@@ -1,9 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),C=require('../src/quant-content.js'),E=require('../src/quant-engine.js');
 const b=C.subjects.maths,t=b.topics.find(t=>t.id==='plane_geometry');
 test('Geometry baseline has distinct original subskills and independently calculated keys',()=>{
- assert.equal(t.questions.length,6);assert.equal(new Set(t.questions.map(q=>q.skill)).size,6);
+ assert.ok(t.questions.length>=6);assert.equal(new Set(t.questions.slice(0,6).map(q=>q.skill)).size,6);
  const values=[2*(7+4),360-80-95-110,5*3,9*4,Math.sqrt(6**2+8**2),(5-2)*180/5];
- t.questions.forEach((q,i)=>{assert.ok(q.options[q.answer].includes(String(values[i])),q.prompt);assert.equal(q.options.length,4);assert.equal(new Set(q.options).size,4);});
+ t.questions.slice(0,6).forEach((q,i)=>{assert.ok(q.options[q.answer].includes(String(values[i])),q.prompt);assert.equal(q.options.length,4);assert.equal(new Set(q.options).size,4);});
  assert.ok(t.questions[0].options[t.questions[0].answer].includes(String(7*4)));assert.ok(t.sources.some(s=>s.url.includes('opiq.ee')));
 });
 test('Optional geometry topic preserves old work and records a wrong supported check honestly',()=>{
