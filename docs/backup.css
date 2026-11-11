@@ -54,3 +54,5 @@ study-teachback [hidden], study-teachback-library [hidden] { display: none; }
 @media(max-width:520px){.backup-update-notice{padding:15px;margin:12px 14px}.backup-update-notice h2{font-size:20px}}
 
 .video-welcome{border-left:5px solid #126b62;background:#edf6f0}.video-welcome[hidden]{display:none}.video-welcome h2{font-size:21px}.video-welcome p{margin:.6rem 0}.today-video-help{margin-top:12px}.today-video-help p{font-size:15px}.today-video-help button{min-height:44px}
+
+.backup-control-help{display:inline-block;max-width:32rem;font:13px/1.5 system-ui,sans-serif;color:#425f58}.backup-status .backup-control-help{margin:4px 0 4px 10px}.backup-status button[hidden]+.backup-control-help{display:none}.backup-update-action{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;min-width:0}

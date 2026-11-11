@@ -6,7 +6,7 @@
  let connection;try{connection=JSON.parse(read(localStorage,KEY)||'null');}catch{}
  const invitation=read(sessionStorage,'study-pocket:invitation');
  const bar=document.createElement('section');bar.className='backup-status';bar.setAttribute('aria-label',txt('Privaatne sünkroonimine','Private sync'));
- const status=document.createElement('span');status.setAttribute('role','status');const retry=document.createElement('button');retry.textContent=txt('Sünkrooni nüüd','Sync now');bar.append(status,retry);
+ const status=document.createElement('span');status.setAttribute('role','status');const retry=document.createElement('button');retry.textContent=txt('Sünkrooni nüüd','Sync now');const syncHint=document.createElement('span');syncHint.id='backup-sync-help';syncHint.className='backup-control-help';syncHint.textContent=txt('Saadab õpitöö kontole ja toob sealt uuemad tulemused.','Saves study progress to your account and brings back newer results.');retry.setAttribute('aria-describedby',syncHint.id);bar.append(status,retry,syncHint);
  (document.querySelector('header')||document.body).insertAdjacentElement('afterend',bar);
  let busy=false,timer=null,changed=false,initialized=false,lastError=null,lastAttempt=null,pendingWork=null;
  const reread=()=>{try{const saved=JSON.parse(read(localStorage,KEY)||'null');if(saved?.confirmed&&saved.key)connection=saved;}catch{}};
