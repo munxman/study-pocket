@@ -119,3 +119,17 @@ test('Matched lesson shows the actual missed skill and keeps it across reload be
  const b=bank().maths,s=E.fresh();let a=E.start(s,b,now,'probability_conditions');finish(s,b,now+1);a=E.start(s,b,now+10,'probability_conditions');assert.equal(a.questionIndex,1);a.selected=(E.topic(b,a).questions[a.questionIndex].answer+1)%4;a.confidence='sure';E.submit(s,b,now+11);
  const h=screen('maths',s);const lesson=b.topics.find(t=>t.id===a.concept).followups[1];assert.ok(h.main.innerHTML.includes(lesson.title));assert.ok(h.main.innerHTML.includes(lesson.worked.prompt));h.click('check');const r=screen('maths',h.read()),saved=E.active(r.read());assert.equal(saved.checkSkill,'conditional_group');assert.equal(saved.checkIndex,lesson.simpleIndex);assert.equal(saved.correct,false);r.change('choice',String(E.topic(b,saved).questions[saved.checkIndex].answer));r.submit();assert.equal(E.active(r.read()).correct,false);assert.equal(E.active(r.read()).checkCorrect,true);assert.equal(r.read().cards[a.concept].needsHelp,true);
 });
+
+test('Reasoning precedes answer formulas after a miss and after a check without changing saved results',()=>{
+ const cases=[['maths','formulas_units'],['physics','pressure'],['chemistry','concentration_dilution']];
+ for(const [subject,id] of cases){
+  const b=subject==='chemistry'?require('../src/chemistry-content.js'):bank()[subject],s=E.fresh(),a=E.start(s,b,now,id),t=E.topic(b,a);
+  a.selected=(t.questions[a.questionIndex].answer+1)%4;a.confidence='sure';E.submit(s,b,now+1);
+  const saved=structuredClone(s),h=screen(subject,s),idea=E.lesson(b,a).explanation[0],feedback=t.questions[a.questionIndex].explanation;
+  assert.ok(h.main.innerHTML.indexOf(idea)>=0);assert.ok(h.main.innerHTML.indexOf(idea)<h.main.innerHTML.indexOf(feedback));assert.deepEqual(h.read(),saved);
+  h.click('check');h.change('choice',String(t.questions[E.active(h.read()).checkIndex].answer));h.submit();
+  const done=E.active(h.read()),check=t.questions[done.checkIndex],checkIdea=Object.values(t.followups).find(r=>r.skill===check.skill).explanation[0];
+  assert.ok(h.main.innerHTML.indexOf(checkIdea)>=0);assert.ok(h.main.innerHTML.indexOf(checkIdea)<h.main.innerHTML.indexOf(check.explanation));
+  assert.equal(done.correct,false);assert.equal(done.checkCorrect,true);assert.equal(h.read().sessions.length,1);
+ }
+});

@@ -32,7 +32,7 @@ function both(id, key, simple, application, unit = '') {
   oneNumericAnswer(id, key, 'application', application, unit);
 }
 
-test('all original teaching, sources, questions and keys are preserved', () => {
+test('original question identities and approved broad lessons remain stable', () => {
   const original = structuredClone(content);
   for (const bank of Object.values(original.subjects)) for (const topic of bank.topics) {
     delete topic.followupVersion;
@@ -40,7 +40,7 @@ test('all original teaching, sources, questions and keys are preserved', () => {
     topic.questions = topic.questions.slice(0, 6);
   }
   assert.equal(crypto.createHash('sha256').update(JSON.stringify(original)).digest('hex'),
-    '4ea413baeef1ff073f0b09c7b23ac300d83bab018775fefb34f9dc5d947aed89');
+    '6ef2de53140f102293ae65e86c8a3ef87ea4e9da8649074017b9ff4c31d73919');
 });
 
 test('all original distinct skills have complete, exact-skill follow-ups', () => {

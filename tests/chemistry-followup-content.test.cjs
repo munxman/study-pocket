@@ -13,11 +13,11 @@ const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).
 const originals = {
   atomic_structure_ions: ['dcb461d32fb86c0295b57cbea4294ae296c418aede53964aa49edb7a5bf9d87a', '6b4ec30d3de3c17ae46d25016f5461afed4a3d77ab5c207b19de82d03ba6091e'],
   bonding_polarity: ['9c4766f9b739ad841cc341e3fca71dd8e97af3e15c86b2e9e5a7d6be5accbaf2', '414c2d5628b8a095ae2b88211dedb5b51fa542df2098f2c5db1be627ec8c14ce'],
-  moles_stoichiometry: ['16238d32ace89f8c27e82925a288c3b6d9b286fe29a03545305c478f90d5703f', '6fcbd8cb879a27529bcebcb1c9e85e5c26a0266b58d007a4f8012db87ca6464d'],
-  concentration_dilution: ['a9a4b7b69d9f7771525321625a76f5dbf8ab6b15ad921a24508069a48238fca3', '26d40fd30c711bb14a88dd67aac067c77226c8d79e9997aab50c09bb3c1422c3']
+  moles_stoichiometry: ['16238d32ace89f8c27e82925a288c3b6d9b286fe29a03545305c478f90d5703f', '06c761ce94c3a2b53012f3b93683861130cb1d97c4cb71c477c48182b62de8c4'],
+  concentration_dilution: ['a9a4b7b69d9f7771525321625a76f5dbf8ab6b15ad921a24508069a48238fca3', '61ded5111f98af1fce654988f2fe6354665e5b6c0753b591f6810c8d5f480111']
 };
 
-test('existing chemistry question identities, options, keys and broad lessons are unchanged', () => {
+test('existing chemistry question identities and approved broad lessons remain stable', () => {
   assert.equal(Chemistry.version, 1);
   assert.equal(Chemistry.key, 'hendrik-chemistry-v1');
   for (const t of Chemistry.topics) {

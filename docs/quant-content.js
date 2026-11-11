@@ -38,8 +38,8 @@
                 "skill": "part_of_whole",
                 "title": "Osa protsendina tervikust",
                 "explanation": [
-                  "Osamäär = osa / tervik. Protsendi saamiseks korruta osamäär 100-ga.",
-                  "Leia kõigepealt, milline arv tähistab kõiki vaadeldavaid esemeid."
+                  "Otsi kõigepealt tervik: kelle või mille hulgas osakaalu küsitakse? Võrdle soovitud osa selle tervikuga.",
+                  "Osamäär = osa / tervik. Protsent kirjeldab sama suhet saja kohta, seega korruta osamäär 100-ga."
                 ],
                 "worked": {
                   "prompt": "Karbis on 20 pliiatsit, neist 8 punased. Mitu protsenti pliiatsitest on punased?",
@@ -56,12 +56,13 @@
                 "skill": "percentage_of_quantity",
                 "title": "Protsendi leidmine kogusest",
                 "explanation": [
-                  "Protsent tähendab sajandikku: 10% = 0,10. Osa = osamäär × tervik.",
-                  "Siin otsime esemete arvu, mitte protsendimäära."
+                  "Protsent ütleb, mitu osa sajast võtame. Sama osamääraga suuremast tervikust saad rohkem esemeid.",
+                  "Protsent tähendab sajandikku: 10% = 0,10. Osa = osamäär × tervik. Siin otsime esemete arvu, mitte protsendimäära."
                 ],
                 "worked": {
                   "prompt": "Leia 30% arvust 40.",
                   "steps": [
+                    "30% tähendab kolme kümnendikku tervikust; tulemus peab olema väiksem kui 40.",
                     "30% = 0,30.",
                     "0,30 × 40 = 12."
                   ],
@@ -164,8 +165,8 @@
                 "skill": "inverse_proportion",
                 "title": "Sama teepikkuse aeg ja kiirus",
                 "explanation": [
-                  "Ühtlasel liikumisel t = s / v. Sama teepikkuse juures on aeg kiirusega pöördvõrdeline.",
-                  "Kui kiirus kasvab mingi teguriga, jagatakse aeg sama teguriga."
+                  "Sama teepikkuse kiiremini läbimiseks kulub vähem aega. Kui ühtlane kiirus kahekordistub, kulub sama tee läbimiseks poole vähem aega.",
+                  "Ühtlasel liikumisel t = s / v. Sama teepikkuse juures on aeg kiirusega pöördvõrdeline: kiiruse muutusteguriga tuleb aeg jagada."
                 ],
                 "worked": {
                   "prompt": "Sama marsruudi läbimiseks kulub 30 min. Ühtlane kiirus suureneb kolm korda. Kui kaua nüüd kulub?",
@@ -182,12 +183,13 @@
                 "skill": "combined_scaling",
                 "title": "Kahe muutusteguri ühendamine",
                 "explanation": [
-                  "Kui suurus sõltub suhtest A / d, on uue ja vana väärtuse suhe pindala muutustegur jagatud paksuse muutusteguriga.",
-                  "Rakenda mõlemad tegurid. Mudel eeldab, et kõik muud mõjuvad suurused jäävad samaks."
+                  "Suurem pindala soodustab ülekannet, paksem kiht takistab seda. Hinda mõlemat muutust eraldi, sest need võivad teineteist tugevdada või tasakaalustada.",
+                  "Kui mudelis on kiirus võrdeline A / d, jaga pindala muutustegur paksuse muutusteguriga. Kõik muud mõjuvad suurused peavad jääma samaks."
                 ],
                 "worked": {
                   "prompt": "Mudel annab kiiruse võrdelisena A / d. A suureneb kolm korda ja d kaks korda. Kõik muu püsib. Leia uus kiirus vana suhtes.",
                   "steps": [
+                    "Pindala kasv suurendab kiirust kolm korda, paksuse kasv vähendab seda kaks korda.",
                     "A tegur 3 läheb lugejasse ja d tegur 2 nimetajasse.",
                     "Uue ja vana kiiruse suhe on 3 / 2."
                   ],
@@ -200,12 +202,13 @@
                 "skill": "inverse_rate_time",
                 "title": "Kindla mahu ülekandmise aeg",
                 "explanation": [
-                  "Püsiva voolukiirusega ülekandmisel aeg = maht / voolukiirus.",
-                  "Sama mahu puhul on aeg voolukiirusega pöördvõrdeline. Kasuta sobivaid mahu- ja ajaühikuid."
+                  "Kui sama kogus vedelikku liigub igas minutis kiiremini läbi, saab ülekanne varem valmis. Kogus jääb samaks, muutub selle ülekandmiseks kuluv aeg.",
+                  "Püsiva voolukiirusega aeg = maht / voolukiirus. Sama mahu juures jaga aeg voolukiiruse muutusteguriga; ühikud peavad sobima."
                 ],
                 "worked": {
                   "prompt": "120 mL vedelikku voolab kiirusega 20 mL/min. Uus voolukiirus on 60 mL/min. Kui pikk on uus aeg võrreldes vana ajaga?",
                   "steps": [
+                    "Igas minutis liigub nüüd kolm korda rohkem vedelikku, seega sama koguse jaoks kulub kolmandik ajast.",
                     "Vana aeg on 120 / 20 = 6 min; uus aeg 120 / 60 = 2 min.",
                     "Uue ja vana aja suhe on 2 / 6 = 1/3."
                   ],
@@ -236,12 +239,13 @@
                 "skill": "thickness_scaling",
                 "title": "Kihi paksuse mõju ülekandekiirusele",
                 "explanation": [
-                  "Kui kiirus on paksusega d pöördvõrdeline, jagatakse kiirus paksuse muutusteguriga.",
-                  "Difusiooni lihtmudelis peavad pindala, osarõhkude vahe ja materjali omadused püsima."
+                  "Paksem kiht tähendab osakestele pikemat läbimise teed. Lihtsas difusioonimudelis vähendab see ülekandekiirust, kui pindala, osarõhkude vahe ja materjali omadused püsivad.",
+                  "Kiirus on paksusega d pöördvõrdeline: jaga kiirus paksuse muutusteguriga."
                 ],
                 "worked": {
                   "prompt": "Mudelis on kiirus pöördvõrdeline paksusega. Paksus suureneb neli korda ja muud tegurid püsivad. Mis on uus kiirus vana suhtes?",
                   "steps": [
+                    "Paksem kiht peab selles mudelis andma väiksema, mitte suurema ülekandekiiruse.",
                     "Paksuse tegur on 4; kiiruse tegur on 1 / 4."
                   ],
                   "answer": "Uus kiirus on neljandik varasemast."
@@ -277,13 +281,18 @@
             english: 'Rearranging formulas and checking units',
             why: 'Ühest seosest saab leida eri suurusi; ühikud aitavad märgata valesti valitud tehet.',
             explanation: [
-              'Kirjuta kõigepealt seos ja märgi otsitav suurus. Kui v = s / t, siis s = v × t ja t = s / v. Võrrandi mõlemale poolele tuleb teha sama tehe.',
-              'Kontrolli ühikuid. Meetrite jagamine sekunditega annab m/s. Džaulide jagamine vattidega annab sekundeid, sest 1 W = 1 J/s.',
-              'Arvutamiseks peavad ühikud omavahel sobima. Kui kiirus on mm/s ja vahemaa mm, saad aja sekundites. Kui ühikud ei sobi, teisenda need enne arvutamist.'
+              "Mõtle enne valemit, mida suurus tähendab. Kiirus ütleb, kui pika tee läbid ajaühikus; võimsus ütleb, kui palju energiat kantakse üle ajaühikus. See aitab valida, kas korrutada või jagada.",
+              "Kui v = s / t, siis s = v × t ja t = s / v. Võrrandi mõlemale poolele tuleb teha sama tehe: võrdsus peab säilima.",
+              "Kontrolli ühikuid. Meetrite jagamine sekunditega annab m/s. Džaulide jagamine vattidega annab sekundeid, sest 1 W = 1 J/s. Kui ühikud ei sobi, teisenda need enne arvutamist."
             ],
             worked: {
               prompt: 'Seade kannab üle 240 J energiat keskmise võimsusega 12 W. Leia aeg, kasutades P = E / t.',
-              steps: ['Korruta mõlemad pooled ajaga: P × t = E.', 'Jaga mõlemad pooled võimsusega: t = E / P.', 't = 240 J / 12 W = 20 s, sest W = J/s.'],
+              steps: [
+                "12 W tähendab keskmiselt 12 džauli igas sekundis. Otsime, mitu sellist sekundit on vaja 240 džauli ülekandmiseks.",
+                "Korruta mõlemad pooled ajaga: P × t = E.",
+                "Jaga mõlemad pooled võimsusega: t = E / P.",
+                "t = 240 J / 12 W = 20 s, sest W = J/s."
+              ],
               answer: 'Aeg on 20 sekundit.'
             },
             sources: [
@@ -296,12 +305,13 @@
                 "skill": "substitution_speed",
                 "title": "Kiirus teepikkusest ja ajast",
                 "explanation": [
-                  "Keskmine kiirus v = s / t: jaga läbitud teepikkus ajaga.",
-                  "Kui s on meetrites ja t sekundites, tuleb vastus ühikus m/s."
+                  "Keskmine kiirus ütleb, kui palju teepikkust tuleb ühe ajaühiku kohta. Selle leidmiseks jaota kogu läbitud tee kulunud aja peale.",
+                  "v = s / t. Kui s on meetrites ja t sekundites, tuleb vastus ühikus m/s."
                 ],
                 "worked": {
                   "prompt": "Kelgu teepikkus on 35 m ja aeg 7 s. Leia keskmine kiirus.",
                   "steps": [
+                    "Jagame 35 meetrit seitsme sekundi peale, et leida keskmine teepikkus ühe sekundi kohta.",
                     "v = 35 m / 7 s = 5 m/s."
                   ],
                   "answer": "Keskmine kiirus on 5 m/s."
@@ -313,12 +323,13 @@
                 "skill": "rearrange_product",
                 "title": "Jagatise valemist korrutise leidmine",
                 "explanation": [
-                  "Kui a = b / c, korruta mõlemad pooled c-ga: a × c = b.",
-                  "Otsitav lugeja saadakse jagatise ja nimetaja korrutisena."
+                  "Võrrandi võrdsus peab iga sammu järel säilima. Kui otsitav suurus on jagatud arvuga, saad jagamise kõrvaldada, korrutades mõlemad pooled sama arvuga.",
+                  "Kui a = b / c ja c ei ole null, siis a × c = b. Ühtlase liikumise korral tähendab kiiruse korrutamine ajaga läbitud teepikkust."
                 ],
                 "worked": {
                   "prompt": "Avalda s seosest v = s / t.",
                   "steps": [
+                    "Kiirus näitab teepikkust ajaühikus; korrutades selle ajaga, saame kogu teepikkuse.",
                     "Korruta mõlemad pooled t-ga: v × t = s."
                   ],
                   "answer": "s = v × t."
@@ -330,12 +341,13 @@
                 "skill": "transfer_time_units",
                 "title": "Liikumisaja leidmine ja ühikud",
                 "explanation": [
-                  "Ühtlasel liikumisel v = s / t, seega t = s / v.",
-                  "Teepikkuse ja kiiruse pikkusühikud peavad sobima. Näiteks mm / (mm/s) = s."
+                  "Aja leidmiseks loe, mitu ühe sekundi jooksul läbitavat teepikkust mahub kogu teesse. Väiksem kiirus tähendab sama tee jaoks pikemat aega.",
+                  "Ühtlasel liikumisel t = s / v. Teepikkuse ja kiiruse pikkusühikud peavad sobima: mm / (mm/s) = s."
                 ],
                 "worked": {
                   "prompt": "Detail liigub ühtlaselt kiirusega 0,5 mm/s ja läbib 4 mm. Leia aeg.",
                   "steps": [
+                    "Igas sekundis läbitakse pool millimeetrit; ühe millimeetri jaoks kulub kaks sekundit.",
                     "t = s / v = 4 mm / (0,5 mm/s).",
                     "t = 8 s; millimeetrid taanduvad."
                   ],
@@ -348,12 +360,13 @@
                 "skill": "transfer_density_mass",
                 "title": "Mass tihedusest ja ruumalast",
                 "explanation": [
-                  "Tihedus rho = m / V, seega mass m = rho × V.",
-                  "Ühikud peavad sobima: (g/mL) × mL = g. Tihedus näitab ühe ruumalaühiku massi."
+                  "Tihedus ütleb, kui suur mass on ühes ruumalaühikus. Kogu massi saad, võttes nii mitu sellist kogust, kui palju ruumalaühikuid proovis on.",
+                  "Tihedus rho = m / V, seega m = rho × V. Ühikud peavad sobima: (g/mL) × mL = g."
                 ],
                 "worked": {
                   "prompt": "Aine tihedus on 2 g/mL ja ruumala 7 mL. Leia mass.",
                   "steps": [
+                    "Iga milliliiter kaalub siin 2 grammi ning neid milliliitreid on seitse.",
                     "m = rho × V = 2 g/mL × 7 mL = 14 g."
                   ],
                   "answer": "Mass on 14 g."
@@ -365,12 +378,13 @@
                 "skill": "rearrange_time",
                 "title": "Aeg energiast ja võimsusest",
                 "explanation": [
-                  "Seosest P = E / t saab P × t = E ja t = E / P.",
-                  "Energia ühik J jagatud võimsuse ühikuga W annab sekundi, sest W = J/s."
+                  "Võimsus näitab, kui palju energiat kantakse üle ühes sekundis. Aja leidmiseks küsi, mitu sellist sekundit on vaja kogu energia ülekandmiseks.",
+                  "Seosest P = E / t saab P × t = E ja t = E / P. Ühik J / W annab sekundi, sest W = J/s."
                 ],
                 "worked": {
                   "prompt": "Seade kannab üle 56 J energiat keskmise võimsusega 8 W. Leia aeg.",
                   "steps": [
+                    "8 W tähendab keskmiselt 8 J igas sekundis; 56 J jaoks on vaja seitset sellist sekundit.",
                     "t = E / P = 56 J / 8 W = 7 s."
                   ],
                   "answer": "Aeg on 7 s."
@@ -382,12 +396,13 @@
                 "skill": "substitution_concentration",
                 "title": "Massikontsentratsiooni arvutamine",
                 "explanation": [
-                  "Massikontsentratsioon c = m / V näitab aine massi lahuse ruumalaühiku kohta.",
-                  "Kui mass on grammides ja lahuse ruumala liitrites, on c ühik g/L."
+                  "Massikontsentratsioon ütleb, kui palju lahustunud aine massi on ühes ruumalaühikus lahuses. Jaota aine mass kogu lahuse mahu peale.",
+                  "c = m / V. Kui m on grammides ja V liitrites, on c ühik g/L."
                 ],
                 "worked": {
                   "prompt": "2 L lahuses on 10 g ainet. Leia massikontsentratsioon.",
                   "steps": [
+                    "10 grammi on jaotunud kahe liitri peale, seega ühes liitris on pool sellest.",
                     "c = 10 g / 2 L = 5 g/L."
                   ],
                   "answer": "Massikontsentratsioon on 5 g/L."
@@ -497,8 +512,8 @@
                 "skill": "joint_vs_conditional",
                 "title": "Ühine ja tingimuslik tõenäosus",
                 "explanation": [
-                  "Kui kaks sündmust on sõltumatud, on nende ühine tõenäosus tõenäosuste korrutis.",
-                  "„Mõlemad korraga” ei ole sama mis „teine esimese tingimusel”. Sõltumatuse korral tingimus teise tõenäosust ei muuda."
+                  "Küsimus „mõlemad korraga” nõuab kahte õnnestumist. „Teine esimese tingimusel” vaatleb ainult neid katseid, kus esimene on juba toimunud.",
+                  "Sõltumatute sündmuste ühine tõenäosus on tõenäosuste korrutis. Esimese sündmuse toimumine ei muuda teise tõenäosust."
                 ],
                 "worked": {
                   "prompt": "Õiglast münti ja õiglast täringut kasutatakse sõltumatult. Mis on kulli ja kuue saamise ühine tõenäosus?",
@@ -521,6 +536,7 @@
                 "worked": {
                   "prompt": "Õiglast täringut ja õiglast münti kasutatakse sõltumatult. Mis on paarisarvu ning kulli tõenäosus?",
                   "steps": [
+                    "Paarisarv tuleb pooltel täringuvisetel; neist omakorda pooltel saame sõltumatu mündiviskega kulli.",
                     "Paarisarvude tõenäosus on 3/6 = 1/2 ja kulli tõenäosus 1/2.",
                     "Ühine tõenäosus = 1/2 × 1/2 = 1/4."
                   ],
@@ -576,7 +592,7 @@
   "why": "Üks väike võimalus proovida geomeetria alustalasid. Joonista soovi korral ise lihtne skeem ja märgi antud suurused; selgituse võid avada ka enne vastamist.",
   "explanation": [
     "Ümbermõõt P (perimeter) on kujundi piirjoone pikkus: liida kõigi külgede pikkused. Pindala A (area) kirjeldab kujundi sisse jääva pinna suurust. Ristküliku (rectangle) külgedega a ja b on P = 2(a + b) ning A = a × b. Pikkuse ühik võib olla cm, pindala ühik aga cm².",
-    "Rööpküliku (parallelogram) pindala on A = b × h. Kõrgus h (perpendicular height) mõõdetakse valitud alusega b risti; kaldkülg ei ole üldjuhul kõrgus. Sama aluse ja kõrgusega kolmnurga (triangle) pindala on pool sellest: A = b × h / 2.",
+    "Rööpkülikust saab lõigata ühe otsa kolmnurga ja tõsta selle teise otsa: pindala ei muutu ning tekib sama aluse ja kõrgusega ristkülik. Seetõttu A = b × h, kus h mõõdetakse alusega risti. Kaldkülg ei ole üldjuhul kõrgus. Sama aluse ja kõrgusega kolmnurga pindala on pool sellest: A = b × h / 2.",
     "Kolmnurga sisenurkade summa on 180°. Kumera n-nurga (convex polygon) saab ühest tipust jagada n − 2 kolmnurgaks, seega tema sisenurkade summa on (n − 2) × 180°. Nelinurgal on summa 360°. Korrapärase hulknurga (regular polygon) kõik sisenurgad on võrdsed: ühe nurga leidmiseks jaga summa n-ga. Tavalise ebakorrapärase hulknurga nurgad ei pea olema võrdsed.",
     "Täisnurkses kolmnurgas (right triangle) on täisnurga vastaskülg hüpotenuus c (hypotenuse). Kahe kaateti a ja b (legs) ning hüpotenuusi seos on a² + b² = c². Hüpotenuusi pikkuse saamiseks võta summast ruutjuur. Pythagorase teoreemi ei tohi kasutada suvalise kolmnurga külgede kohta."
   ],
@@ -614,12 +630,13 @@
                 "skill": "rectangle_perimeter_area",
                 "title": "Ristküliku ümbermõõt ja pindala",
                 "explanation": [
-                  "Ümbermõõt P = 2(a + b) mõõdab nelja serva kogupikkust. Pindala A = a × b mõõdab kaetud pinda.",
-                  "Ümbermõõdu ühik on näiteks cm, pindala ühik cm². Arvuta mõlemad eraldi."
+                  "Ümbermõõt mõõdab teed ümber kujundi serva; pindala mõõdab, kui palju pinda kujund katab. Need vastavad eri küsimustele.",
+                  "Ristkülikul P = 2(a + b) ja A = a × b. Ümbermõõdu ühik on näiteks cm, pindala ühik cm². Arvuta need eraldi."
                 ],
                 "worked": {
                   "prompt": "Ristküliku küljed on 9 cm ja 2 cm. Leia ümbermõõt ja pindala.",
                   "steps": [
+                    "Serva pikkuseks liidame neli külge; pinna katmiseks loeme ruutühikuid ridade ja veergude kaupa.",
                     "P = 2 × (9 + 2) = 22 cm.",
                     "A = 9 × 2 = 18 cm²."
                   ],
@@ -632,8 +649,8 @@
                 "skill": "quadrilateral_missing_angle",
                 "title": "Nelinurga puuduv sisenurk",
                 "explanation": [
-                  "Kumera nelinurga sisenurkade summa on 360°.",
-                  "Puuduva nurga leidmiseks liida kolm antud nurka ja lahuta summa 360°-st."
+                  "Üks diagonaal jagab kumera nelinurga kaheks kolmnurgaks. Mõlema kolmnurga nurgad kokku annavad nelinurga sisenurgad.",
+                  "Kolmnurgas on 180°, seega nelinurgas 2 × 180° = 360°. Puuduva nurga leidmiseks lahuta sellest kolme teadaoleva nurga summa."
                 ],
                 "worked": {
                   "prompt": "Kumera nelinurga kolm nurka on 90°, 100° ja 110°. Leia neljas.",
@@ -656,6 +673,7 @@
                 "worked": {
                   "prompt": "Ristküliku küljed on 9 cm ja 12 cm. Leia diagonaal.",
                   "steps": [
+                    "Diagonaal on kahe risti oleva külje vastas ja peab olema kummastki küljest pikem.",
                     "d² = 9² + 12² = 81 + 144 = 225 cm².",
                     "d = √225 cm = 15 cm."
                   ],
@@ -668,12 +686,13 @@
                 "skill": "regular_polygon_angle_transfer",
                 "title": "Korrapärase hulknurga sisenurk",
                 "explanation": [
-                  "Kumera n-nurga sisenurkade summa on (n − 2) × 180°.",
-                  "Korrapärase hulknurga nurgad on võrdsed. Üks sisenurk = summa / n."
+                  "Ühest tipust tõmmatud diagonaalid jagavad kumera hulknurga kolmnurkadeks. Iga kolmnurk lisab nurgasummasse 180°.",
+                  "n-tipulises kujundis tekib n − 2 kolmnurka. Nurkade summa on (n − 2) × 180°; korrapärases hulknurgas jaga see n võrdse nurga vahel."
                 ],
                 "worked": {
                   "prompt": "Leia korrapärase kuusnurga üks sisenurk.",
                   "steps": [
+                    "Kuusnurga saab ühest tipust jagada neljaks kolmnurgaks.",
                     "Nurkade summa on (6 − 2) × 180° = 720°.",
                     "Üks sisenurk on 720° / 6 = 120°."
                   ],
@@ -686,12 +705,13 @@
                 "skill": "rectangle_area_supported",
                 "title": "Ristküliku pindala",
                 "explanation": [
-                  "Ristküliku pindala A = pikkus × laius.",
-                  "Pindala ühik on ruutühik: cm × cm = cm². Servade liitmine annaks teise suuruse."
+                  "Kujuta ette, et katad ristküliku ühesuuruste ruutudega. Ühes reas on neid pikkuse jagu ja ridu on laiuse jagu.",
+                  "Seepärast A = pikkus × laius. cm × cm = cm²; servade liitmine annaks ümbermõõdu."
                 ],
                 "worked": {
                   "prompt": "Ristküliku küljed on 7 cm ja 2 cm. Leia pindala.",
                   "steps": [
+                    "Kahe rea seitsmest ühikruudust saame neliteist ühikruutu.",
                     "A = 7 cm × 2 cm = 14 cm²."
                   ],
                   "answer": "Pindala on 14 cm²."
@@ -703,8 +723,8 @@
                 "skill": "parallelogram_perpendicular_height",
                 "title": "Rööpküliku alus ja ristuv kõrgus",
                 "explanation": [
-                  "Rööpküliku pindala A = alus × sellele alusele risti mõõdetud kõrgus.",
-                  "Kaldkülg ei ole üldjuhul kõrgus. Vali alusega risti mõõdetud kaugus vastasküljeni."
+                  "Rööpküliku otsast saab kolmnurga ümber tõsta, et tekiks sama pindalaga ristkülik. Selle ristküliku kõrgus on aluste vaheline ristkaugus, mitte kaldkülg.",
+                  "A = alus × sellele alusele risti mõõdetud kõrgus. Vali alusega risti mõõdetud kaugus vastasküljeni."
                 ],
                 "worked": {
                   "prompt": "Rööpküliku alus on 7 cm, selle aluse kõrgus 3 cm ja kaldkülg 5 cm. Leia pindala.",
@@ -833,12 +853,13 @@
                 "skill": "volume_prefix",
                 "title": "Milliliitritest liitriteks",
                 "explanation": [
-                  "1 mL = 0,001 L. Milliliitritest liitriteks teisendamisel jaga arv 1000-ga.",
-                  "Suuremas ühikus on sama mahu arvuline väärtus väiksem. Maht ise ei muutu."
+                  "Sama vedelikukogus ei muutu ühiku vahetamisel. Liiter on suurem ühik kui milliliiter, nii et liitrites peab arv olema väiksem.",
+                  "Üks liiter sisaldab 1000 mL. 1 mL = 0,001 L; milliliitritest liitriteks jaga arv 1000-ga."
                 ],
                 "worked": {
                   "prompt": "Teisenda 8 mL liitriteks.",
                   "steps": [
+                    "Ühte liitrisse mahub tuhat milliliitrit; kaheksa milliliitrit on vaid väike osa liitrist.",
                     "8 / 1000 = 0,008."
                   ],
                   "answer": "8 mL = 0,008 L."
@@ -850,12 +871,13 @@
                 "skill": "micro_to_milli",
                 "title": "Mikromeetritest millimeetriteks",
                 "explanation": [
-                  "1 mm = 1000 µm. Mikromeetritest millimeetriteks teisendamisel jaga arv 1000-ga.",
-                  "Mikro on 10⁻⁶ ja milli 10⁻³ põhiühikut; nende vahe on tegur 1000."
+                  "Millimeeter on mikromeetrist suurem ühik. Sama pikkuse väljendamiseks millimeetrites on vaja väiksemat arvu.",
+                  "1 mm = 1000 µm. Mikromeetritest millimeetriteks jaga arv 1000-ga."
                 ],
                 "worked": {
                   "prompt": "Teisenda 800 µm millimeetriteks.",
                   "steps": [
+                    "Terve millimeeter on tuhat mikromeetrit; 800 mikromeetrit peab jääma alla ühe millimeetri.",
                     "800 / 1000 = 0,8."
                   ],
                   "answer": "800 µm = 0,8 mm."
@@ -873,6 +895,7 @@
                 "worked": {
                   "prompt": "Ruudu külg on 500 µm. Leia pindala mm²-des.",
                   "steps": [
+                    "Kõigepealt väljendame külje millimeetrites; pindala arvutamisel kasutatakse seda külgepikkust kaks korda.",
                     "500 µm = 0,5 mm.",
                     "A = 0,5 × 0,5 = 0,25 mm²."
                   ],
@@ -902,12 +925,13 @@
                 "skill": "current_prefix",
                 "title": "Ampritest milliampriteks",
                 "explanation": [
-                  "1 A = 1000 mA. Ampritest milliampriteks teisendamisel korruta arv 1000-ga.",
-                  "Väiksemas ühikus on sama voolutugevuse arvuline väärtus suurem."
+                  "Milliamper on amprist väiksem ühik. Sama voolutugevuse jaoks on milliamprites kirjutatud arv suurem.",
+                  "1 A = 1000 mA. Ampritest milliampriteks korruta arv 1000-ga."
                 ],
                 "worked": {
                   "prompt": "Teisenda 0,7 A milliampriteks.",
                   "steps": [
+                    "Üks amper sisaldab tuhat milliamprit; võtame sellest seitse kümnendikku.",
                     "0,7 × 1000 = 700."
                   ],
                   "answer": "0,7 A = 700 mA."
@@ -919,12 +943,13 @@
                 "skill": "energy_prefix",
                 "title": "Kilodžaulidest džaulideks",
                 "explanation": [
-                  "Eesliide kilo tähendab 1000, seega 1 kJ = 1000 J.",
-                  "Korruta kilodžaulide arv 1000-ga. Üle kantud energia ise teisendamisel ei muutu."
+                  "Kilo tähendab tuhandest põhiühikust koosnevat kogust. Džaulideks teisendades loeme need väiksemad ühikud kokku; energia ise ei muutu.",
+                  "1 kJ = 1000 J. Korruta kilodžaulide arv 1000-ga."
                 ],
                 "worked": {
                   "prompt": "Teisenda 2,4 kJ džaulideks.",
                   "steps": [
+                    "Iga kilodžaul sisaldab tuhat džauli.",
                     "2,4 × 1000 = 2400."
                   ],
                   "answer": "2,4 kJ = 2400 J."
@@ -960,13 +985,18 @@
             english: 'Pressure and pressure differences',
             why: 'Rõhk seob jõu ja pindala; rõhkude erinevused aitavad mõista ka hingamist ja vedelike liikumist.',
             explanation: [
-              'Pinnale risti mõjuva jõu korral on keskmine rõhk p = F / A. Ühik paskal on 1 Pa = 1 N/m². Sama jõud väiksemal pinnal annab suurema rõhu.',
-              'Paigalseisvas ühtlase tihedusega vedelikus annab sügavuse muutus rõhu muutuse delta p = rho × g × h. Kogurõhk sisaldab lisaks vedeliku pinnale mõjuvat rõhku. Kui ülesanne lubab, kasuta g = 10 N/kg.',
-              'Avatud ühenduse korral võib rõhkude vahe tekitada vedeliku või gaasi üldise voolu kõrgema rõhu poolt madalama poole. Hapniku difusiooni läbi membraani kirjeldab aga hapniku osarõhkude vahe; seda ei tohi samastada kogu õhu voolamisega.'
+              "Rõhk kirjeldab, kui suurele pinnale jõud jaotub. Sama jõud väiksemal pinnal mõjub igale pinnaühikule tugevamalt. Pinnale risti mõjuva jõu korral p = F / A; 1 Pa = 1 N/m².",
+              "Paigalseisvas vedelikus on sügavamal kohal rohkem vedelikku peal. Ühtlase tiheduse korral annab sügavuste vahe h rõhuerinevuse Δp = rho × g × h. Kogurõhk sisaldab lisaks pinnale mõjuvat rõhku. Kui ülesanne lubab, kasuta g = 10 N/kg.",
+              "Avatud ühenduse korral võib rõhkude vahe tekitada vedeliku või gaasi üldise voolu kõrgema rõhu poolt madalama poole. Hapniku difusiooni läbi membraani kirjeldab aga hapniku osarõhkude vahe; seda ei tohi samastada kogu õhu voolamisega."
             ],
             worked: {
               prompt: 'Padi jaotab 120 N suuruse pinnaga risti mõjuva jõu ühtlaselt 0,06 m² suurusele alale. Leia keskmine rõhk.',
-              steps: ['Kasuta p = F / A.', 'p = 120 N / 0,06 m².', '120 / 0,06 = 2000 ning N/m² = Pa.'],
+              steps: [
+                "Rõhk küsib jõudu ühe ruutmeetri kohta, seega jagame jõu selle pindalaga.",
+                "Kasuta p = F / A.",
+                "p = 120 N / 0,06 m².",
+                "120 / 0,06 = 2000 ning N/m² = Pa."
+              ],
               answer: 'Keskmine rõhk on 2000 Pa.'
             },
             sources: [
@@ -979,12 +1009,13 @@
                 "skill": "force_area_pressure",
                 "title": "Rõhk jõust ja pindalast",
                 "explanation": [
-                  "Pinnaga risti mõjuva jõu keskmine rõhk on p = F / A.",
-                  "Kasuta jõudu njuutonites ja pindala ruutmeetrites: 1 Pa = 1 N/m²."
+                  "Rõhk näitab, kui suur risti mõjuv jõud tuleb pinnaühiku kohta. Sama jõu koondamine väiksemale pinnale suurendab rõhku.",
+                  "Keskmine rõhk p = F / A. Kasuta njuutoneid ja ruutmeetreid: 1 Pa = 1 N/m²."
                 ],
                 "worked": {
                   "prompt": "30 N suurune risti mõjuv jõud jaotub 0,02 m² alale. Leia keskmine rõhk.",
                   "steps": [
+                    "Otsime jõudu ühe ruutmeetri kohta, mitte kogu jõudu pinnal.",
                     "p = 30 N / 0,02 m² = 1500 N/m²."
                   ],
                   "answer": "Keskmine rõhk on 1500 Pa."
@@ -996,12 +1027,13 @@
                 "skill": "pressure_area_relation",
                 "title": "Pindala mõju rõhule",
                 "explanation": [
-                  "Keskmine rõhk p = F / A. Sama risti mõjuva jõu juures on rõhk pindalaga pöördvõrdeline.",
-                  "Kui pindala väheneb mingi teguriga, suureneb rõhk sama teguriga."
+                  "Kui sama jõud jaotub suuremale pinnale, saab iga pinnaühik väiksema osa jõust. Seetõttu rõhk väheneb.",
+                  "p = F / A. Sama risti mõjuva jõu korral on rõhk pindalaga pöördvõrdeline."
                 ],
                 "worked": {
                   "prompt": "Sama jõud jaotatakse kolm korda suuremale alale. Kui suur on uus rõhk võrreldes vanaga?",
                   "steps": [
+                    "Kolm korda suuremal pinnal jaotub sama jõud kolm korda rohkemate pinnaühikute vahel.",
                     "F ei muutu; A uus väärtus on 3 × vana A.",
                     "Uue ja vana rõhu suhe on 1/3."
                   ],
@@ -1050,12 +1082,13 @@
                 "skill": "hydrostatic_difference",
                 "title": "Hüdrostaatiline rõhumuutus",
                 "explanation": [
-                  "Paigalseisvas ühtlase tihedusega vedelikus suureneb rõhk sügavuse suurenemisel: Δp = rho × g × h.",
-                  "See on rõhu muutus. Vedeliku pinnale mõjuvat rõhku ei liideta muutuse leidmisel; kogurõhu jaoks oleks seda vaja."
+                  "Sügavamal on vaadeldava koha kohal paksem vedelikukiht. Selle lisakihi raskus suurendab rõhku. Ühtlase tiheduse ja paigalseisva vedeliku korral sõltub juurdekasv sügavuste vahest.",
+                  "Δp = rho × g × h. See on rõhu muutus; pinnale mõjuvat rõhku muutuse leidmisel juurde ei liideta. Kogurõhu jaoks oleks seda vaja."
                 ],
                 "worked": {
                   "prompt": "Kui palju suureneb rõhk vees 0,3 m sügavamale liikudes? Kasuta rho = 1000 kg/m³ ja g = 10 N/kg.",
                   "steps": [
+                    "Otsime 0,3 meetri paksuse lisaveekihi põhjustatud rõhku, mitte kogu rõhku koos õhurõhuga.",
                     "Δp = 1000 × 10 × 0,3 Pa = 3000 Pa."
                   ],
                   "answer": "Rõhk suureneb 3000 Pa võrra."
@@ -1088,13 +1121,18 @@
             english: 'Energy, work and power',
             why: 'Energia kogus ja selle ülekandmise kiirus on eri asjad nii seadmes kui lihase töös.',
             explanation: [
-              'Energiat ja tööd mõõdetakse džaulides (J). Kui muutumatu jõud mõjub nihkega samas suunas, on töö W = F × s. Teistes suundades ei sobi see lihtkuju ilma parandusteta.',
-              'Keskmine võimsus on ülekantud energia või tehtud töö ajaühikus: P = delta E / delta t. 1 W = 1 J/s. Sama töö tegemine lühema ajaga tähendab suuremat keskmist võimsust.',
-              'Energia ei kao: kasuliku töö kõrval võib energiat kanduda näiteks soojusena. Kasutegur = kasulik energia / kogu sisendenergia. ATP ei ole energia ise; rakus seovad ATP-ga seotud reaktsioonid energia ülekande teiste protsessidega.'
+              "Energiat ja tööd mõõdetakse džaulides (J). Kui muutumatu jõud mõjub nihkega samas suunas, on töö W = F × s. Teistes suundades ei sobi see lihtkuju ilma parandusteta.",
+              "Keskmine võimsus on ülekantud energia või tehtud töö ajaühikus: P = delta E / delta t. 1 W = 1 J/s. Sama töö tegemine lühema ajaga tähendab suuremat keskmist võimsust.",
+              "Energia ei kao: kasuliku töö kõrval võib energiat kanduda näiteks soojusena. Kasutegur = kasulik energia / kogu sisendenergia. ATP ei ole energia ise; rakus seovad ATP-ga seotud reaktsioonid energia ülekande teiste protsessidega."
             ],
             worked: {
               prompt: 'Mootor tõmbab koormat muutumatu 20 N jõuga 3 m jõu suunas. See võtab 10 s. Leia töö ja keskmine võimsus.',
-              steps: ['Töö W = F × s = 20 N × 3 m = 60 J.', 'Keskmine võimsus P = W / t.', 'P = 60 J / 10 s = 6 W.'],
+              steps: [
+                "Kõigepealt leiame jõu tehtud töö kogu teel; seejärel jagame selle kulunud sekundite peale.",
+                "Töö W = F × s = 20 N × 3 m = 60 J.",
+                "Keskmine võimsus P = W / t.",
+                "P = 60 J / 10 s = 6 W."
+              ],
               answer: 'Töö on 60 J ja keskmine võimsus 6 W.'
             },
             sources: [{title: 'Füüsika 8. klassile: mehaaniline töö, energia, võimsus ja kasutegur', url: 'https://opik.fyysika.ee/index.php/book/view/36'}],
@@ -1104,12 +1142,13 @@
                 "skill": "power_from_energy_time",
                 "title": "Võimsus energiast ja ajast",
                 "explanation": [
-                  "Keskmine võimsus P = E / t näitab energia ülekannet ajaühikus.",
-                  "Energia ühik on J, aja ühik s. Jagatis J/s on W."
+                  "Võimsus kirjeldab energia ülekandmise tempot: kui palju energiat kantakse üle ühes sekundis? Sama energia lühema ajaga tähendab suuremat võimsust.",
+                  "Keskmine võimsus P = E / t. J/s on vatt W."
                 ],
                 "worked": {
                   "prompt": "Seade kannab 4 sekundiga üle 36 J energiat. Leia keskmine võimsus.",
                   "steps": [
+                    "Jaotame 36 džauli nelja sekundi peale, et leida ühe sekundi keskmine.",
                     "P = 36 J / 4 s = 9 J/s."
                   ],
                   "answer": "Keskmine võimsus on 9 W."
@@ -1139,12 +1178,13 @@
                 "skill": "efficiency",
                 "title": "Kasuliku energia osakaal",
                 "explanation": [
-                  "Kasutegur = kasulik väljundenergia / kogu sisendenergia. Protsentides vastuse saamiseks korruta 100-ga.",
-                  "Energia säilib: osa sisendist võib kanduda mujale või teistesse vormidesse. Määra, milline väljund on ülesandes kasulik."
+                  "Kasutegur küsib, milline osa saadud energiast jõuab soovitud kasulikku väljundisse. Ülejäänud energia ei kao, vaid kandub mujale või teistesse vormidesse.",
+                  "Kasutegur = kasulik väljundenergia / kogu sisendenergia. Protsendi saamiseks korruta 100-ga."
                 ],
                 "worked": {
                   "prompt": "Seade saab 200 J energiat ja annab 80 J kasulikku väljundenergiat. Leia kasutegur.",
                   "steps": [
+                    "80 džauli on kasulik osa kogu 200 džaulist; ülejäänu peab samuti väljundites arvesse minema.",
                     "80 / 200 = 0,40.",
                     "0,40 × 100% = 40%. Ülejäänud 120 J kandub muudesse väljunditesse."
                   ],
@@ -1157,12 +1197,13 @@
                 "skill": "energy_vs_power_transfer",
                 "title": "Sama töö võimsuste võrdlus",
                 "explanation": [
-                  "Keskmine võimsus P = W / t. Sama töö korral on võimsus ajaga pöördvõrdeline.",
-                  "Võimsuste võrdlemiseks jaga kas mõlemad tööd ajaga või kasuta pööratud aegade suhet."
+                  "Sama töö lühema ajaga tähendab, et igas sekundis tehakse rohkem tööd. Seetõttu on kiiremini sama töö lõpetava mootori keskmine võimsus suurem.",
+                  "P = W / t. Sama töö korral on võimsus ajaga pöördvõrdeline."
                 ],
                 "worked": {
                   "prompt": "Kaks mootorit teevad kumbki 120 J tööd. A teeb seda 12 s ja B 4 s jooksul. Mitu korda suurem on B keskmine võimsus?",
                   "steps": [
+                    "B teeb sama töö kolm korda lühema ajaga, seega peab tema keskmine võimsus olema kolm korda suurem.",
                     "P_A = 120 / 12 = 10 W; P_B = 120 / 4 = 30 W.",
                     "P_B / P_A = 30 / 10 = 3."
                   ],
@@ -1175,12 +1216,13 @@
                 "skill": "mechanical_work",
                 "title": "Muutumatu jõu töö",
                 "explanation": [
-                  "Kui muutumatu jõud mõjub nihkega samas suunas, on selle jõu töö W = F × s.",
-                  "N × m = J. See lihtkuju eeldab samasuunalisust; iga suuna korral ei saa seda otse kasutada."
+                  "Sama liikumissuunalise jõu pikemal teel mõjumisel tehakse rohkem tööd. Sama teepikkuse juures annab suurem selline jõud suurema töö.",
+                  "Muutumatu jõu ja samasuunalise nihke korral W = F × s. N × m = J; muude suundade korral see lihtkuju ei sobi."
                 ],
                 "worked": {
                   "prompt": "Muutumatu 6 N jõud mõjub nihkega samas suunas 5 m jooksul. Leia selle jõu töö.",
                   "steps": [
+                    "Jõud mõjub liikumise suunas kogu viiemeetrisel teel, seega saab siin kasutada jõu ja teepikkuse korrutist.",
                     "W = 6 N × 5 m = 30 J."
                   ],
                   "answer": "Jõu töö on 30 J."
@@ -1192,12 +1234,13 @@
                 "skill": "power_from_work_time",
                 "title": "Töö keskmine võimsus",
                 "explanation": [
-                  "Keskmine võimsus P = tehtud töö / kulunud aeg.",
-                  "Kui antud on kasulik töö, saad sellest kasuliku töö võimsuse. Sisendvõimsust ei saa ilma lisateabeta samaks pidada."
+                  "Kasuliku töö võimsus ütleb, kui palju kasulikku tööd tehakse keskmiselt ühes sekundis. Jaga kogu kasulik töö selle tegemiseks kulunud aja peale.",
+                  "P = töö / aeg. Kasulik võimsus ei pruugi olla sama mis sisendvõimsus."
                 ],
                 "worked": {
                   "prompt": "Pump teeb 8 sekundiga 64 J kasulikku tööd. Leia kasuliku töö keskmine võimsus.",
                   "steps": [
+                    "Otsime keskmist kasulikku tööd ühe sekundi kohta.",
                     "P = 64 J / 8 s = 8 W."
                   ],
                   "answer": "Kasuliku töö keskmine võimsus on 8 W."
@@ -1239,7 +1282,12 @@
             ],
             worked: {
               prompt: 'Oomilise takisti takistus püsib 4 oomi. Selle otste vahel on 12 V pinge. Leia voolutugevus.',
-              steps: ['Kasuta I = U / R.', 'I = 12 V / 4 oomi.', '12 / 4 = 3.'],
+              steps: [
+                "Pinge soodustab laengute liikumist ja takistus piirab voolu. Selle oomilise takisti puhul saame kasutada nende suhet.",
+                "Kasuta I = U / R.",
+                "I = 12 V / 4 oomi.",
+                "12 / 4 = 3."
+              ],
               answer: 'Voolutugevus on 3 A.'
             },
             sources: [
@@ -1252,12 +1300,13 @@
                 "skill": "charge_current",
                 "title": "Voolutugevus laengust ja ajast",
                 "explanation": [
-                  "Keskmine voolutugevus I = Q / t. See näitab ristlõiget läbiva laengu hulka ajaühikus.",
-                  "1 A = 1 C/s. Laengut ei korrutata ajaga ega samastata pingega."
+                  "Voolutugevus näitab, kui palju laengut läbib ristlõiget ühes sekundis. Sama laengu läbiminek lühema ajaga tähendab suuremat keskmist voolu.",
+                  "I = Q / t; 1 A = 1 C/s. Jaga laeng kulunud ajaga."
                 ],
                 "worked": {
                   "prompt": "Juhtme ristlõiget läbib 4 sekundiga 16 C laengut. Leia keskmine voolutugevus.",
                   "steps": [
+                    "Jagame 16 kulonit nelja sekundi peale, et leida keskmine laeng ühe sekundi kohta.",
                     "I = 16 C / 4 s = 4 C/s."
                   ],
                   "answer": "Keskmine voolutugevus on 4 A."
@@ -1269,12 +1318,13 @@
                 "skill": "energy_per_charge",
                 "title": "Pinge kui energia laenguühiku kohta",
                 "explanation": [
-                  "Pinge U = E / Q näitab, kui palju energiat kantakse üle ühe laenguühiku kohta.",
-                  "1 V = 1 J/C. Arvutuses jaga energia laenguga."
+                  "Pinge ütleb, kui palju energiat kantakse üle ühe laenguühiku liikumisel. Sama energia väiksema laengukoguse kohta tähendab suuremat pinget.",
+                  "U = E / Q; 1 V = 1 J/C. Jaga energia laenguga."
                 ],
                 "worked": {
                   "prompt": "2 C laengu liikumisel kantakse üle 18 J energiat. Leia pinge.",
                   "steps": [
+                    "18 džauli vastab kahele kulonile; ühe kuloni kohta tuleb pool sellest energiast.",
                     "U = 18 J / 2 C = 9 J/C."
                   ],
                   "answer": "Pinge on 9 V."
@@ -1286,8 +1336,8 @@
                 "skill": "voltage_current_scaling",
                 "title": "Pinge mõju voolutugevusele",
                 "explanation": [
-                  "Oomilisel takistil I = U / R. Püsiva takistuse korral on voolutugevus pingega võrdeline.",
-                  "Võrdlus eeldab sama takistit ja muutumatut temperatuuri ning takistust."
+                  "Sama oomilise takisti juures annab suurem pinge samas suhtes suurema voolutugevuse. Takistus ja temperatuur peavad võrdluses püsima.",
+                  "I = U / R. Püsiva R korral on I pingega võrdeline."
                 ],
                 "worked": {
                   "prompt": "Sama oomilise takisti pinge kasvab 2 V-lt 8 V-le. Takistus ja temperatuur püsivad. Kui suur on uus voolutugevus vana suhtes?",
@@ -1322,12 +1372,13 @@
                 "skill": "ohms_law",
                 "title": "Ohmi seadusest voolutugevus",
                 "explanation": [
-                  "Oomilise takisti korral I = U / R: jaga pinge takistusega.",
-                  "Mudel eeldab oomilist takistit püsival temperatuuril. Volt jagatud oomiga annab ampri."
+                  "Suurem pinge suurendab oomilises takistis voolu; suurem takistus sama pinge juures vähendab seda. Need mõjud on jagatises eri pooltel.",
+                  "I = U / R. See mudel eeldab oomilist takistit püsival temperatuuril; V / Ω = A."
                 ],
                 "worked": {
                   "prompt": "Oomilise takisti otstel on pinge 20 V ja takistus 5 oomi püsival temperatuuril. Leia voolutugevus.",
                   "steps": [
+                    "Voolu leidmiseks jagame liikumist soodustava pinge seda piirava takistusega.",
                     "I = 20 V / 5 oomi = 4 A."
                   ],
                   "answer": "Voolutugevus on 4 A."
@@ -1386,12 +1437,13 @@
                 "skill": "photon_nm_to_metre",
                 "title": "Nanomeetritest meetriteks",
                 "explanation": [
-                  "1 nm = 10⁻⁹ m. Korruta nanomeetrite arv teguriga 10⁻⁹.",
-                  "Teaduslikus kirjaviisis vii arvkordaja vahemikku 1 kuni 10 ja muuda astendajat nii, et väärtus säiliks."
+                  "Nanomeeter on meetrist väga palju väiksem ühik. Sama pikkuse arvuline väärtus meetrites peab seetõttu olema palju väiksem.",
+                  "1 nm = 10⁻⁹ m. Korruta nanomeetrite arv teguriga 10⁻⁹. Teaduslikus kirjaviisis säilita väärtus, kui muudad arvkordajat ja astendajat."
                 ],
                 "worked": {
                   "prompt": "Teisenda 700 nm meetriteks.",
                   "steps": [
+                    "700 nanomeetrit on väike osa meetrist, mitte sadu meetreid.",
                     "700 × 10⁻⁹ m = 7,0 × 10² × 10⁻⁹ m.",
                     "10² × 10⁻⁹ = 10⁻⁷."
                   ],
@@ -1422,12 +1474,13 @@
                 "skill": "photon_wavelength_energy_ratio",
                 "title": "Lainepikkuste ja footonienergiate suhe",
                 "explanation": [
-                  "Vaakumis E = h × c / λ. Kui h ja c püsivad, on ühe footoni energia lainepikkusega pöördvõrdeline.",
-                  "Energia suhe E_uus / E_vana = λ_vana / λ_uus. Võrdleme üksikuid footoneid, mitte allikate koguvõimsust."
+                  "Pikem lainepikkus tähendab vaakumis väiksemat sagedust ja seega väiksemat ühe footoni energiat. Kui lainepikkus kahekordistub, väheneb energia poole võrra.",
+                  "E = h × c / λ, seega E_uus / E_vana = λ_vana / λ_uus. See võrdleb üksikuid footoneid, mitte allikate koguvõimsust."
                 ],
                 "worked": {
                   "prompt": "Võrdle vaakumis 200 nm ja 800 nm footoneid. Kui suur on 800 nm footoni energia 200 nm footoni energia suhtes?",
                   "steps": [
+                    "800 nm on neli korda pikem lainepikkus kui 200 nm, seega selle footoni energia peab olema neli korda väiksem.",
                     "E₈₀₀ / E₂₀₀ = 200 / 800 = 1/4."
                   ],
                   "answer": "800 nm footoni energia on neljandik 200 nm footoni energiast."
@@ -1445,6 +1498,7 @@
                 "worked": {
                   "prompt": "Aatom kiirgab ühe footoni üleminekul, mille energiavahe on 2,64 × 10⁻¹⁹ J. Leia sagedus.",
                   "steps": [
+                    "Ühe kiiratud footoni energia peab võrduma aatomi kaotatud energiaga; sellest energiast leiame sageduse.",
                     "f = (2,64 × 10⁻¹⁹) / (6,6 × 10⁻³⁴) Hz.",
                     "f = 0,4 × 10¹⁵ Hz = 4,0 × 10¹⁴ Hz."
                   ],
@@ -1457,12 +1511,13 @@
                 "skill": "photon_energy_from_frequency",
                 "title": "Footoni energia sagedusest",
                 "explanation": [
-                  "Ühe footoni energia E = h × f. Sageduse ühik on Hz ehk 1/s, Plancki konstandil J·s.",
-                  "Arvkordajad korrutatakse ja kümne astendajad liidetakse. Ühik J·s × 1/s annab J."
+                  "Suurema sagedusega kiirguse üks footon kannab rohkem energiat. Energia suureneb sagedusega samas suhtes; võrdleme siin üht footonit.",
+                  "E = h × f. Plancki konstandi ühik J·s ja sageduse ühik 1/s annavad korrutamisel J. Kümne astmete korrutamisel astendajad liidetakse."
                 ],
                 "worked": {
                   "prompt": "Sagedus on 2,0 × 10¹⁴ Hz. Leia footoni energia, kui h = 6,6 × 10⁻³⁴ J·s.",
                   "steps": [
+                    "Sagedus määrab ühe footoni energia; selle arvutamiseks korrutame sageduse Plancki konstandiga.",
                     "E = (6,6 × 2,0) × 10⁻³⁴⁺¹⁴ J.",
                     "13,2 × 10⁻²⁰ J = 1,32 × 10⁻¹⁹ J."
                   ],
@@ -1475,12 +1530,13 @@
                 "skill": "photon_energy_from_wavelength",
                 "title": "Footoni energia lainepikkusest",
                 "explanation": [
-                  "Vaakumis E = h × c / λ. Lainepikkus peab olema meetrites, kui c on m/s.",
-                  "Teisenda nanomeetrid meetriteks, korruta h ja c ning jaga lainepikkusega. Vastus kirjeldab ühe footoni energiat."
+                  "Vaakumis liigub valgus sama kiirusega. Lühema lainepikkuse korral möödub sekundis rohkem võnkeid: sagedus on suurem ja ühe footoni energia samuti suurem.",
+                  "f = c / λ ja E = h × f, seega E = h × c / λ. Lainepikkus peab olema meetrites, kui c on m/s."
                 ],
                 "worked": {
                   "prompt": "Vaakumis on lainepikkus 500 nm. Leia energia, kui h = 6,6 × 10⁻³⁴ J·s ja c = 3,0 × 10⁸ m/s.",
                   "steps": [
+                    "Leiame lainepikkusest sageduse kaudu ühe footoni energia; valem ühendab need kaks sammu.",
                     "λ = 500 × 10⁻⁹ m = 5,0 × 10⁻⁷ m.",
                     "E = (6,6 × 3,0 / 5,0) × 10⁻³⁴⁺⁸⁺⁷ J = 3,96 × 10⁻¹⁹ J."
                   ],

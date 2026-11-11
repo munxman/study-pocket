@@ -38,11 +38,13 @@
             "skill": "particle_counts_charge",
             "title": "Iooni prootonid, neutronid ja elektronid",
             "explanation": [
-              "Leia prootonid aatomnumbrist Z ja neutronid vahest A − Z. Elektronide arv on Z − laeng: positiivse iooni puhul lahuta, negatiivse puhul liida."
+              "Prootonid määravad elemendi. Massiarv loendab tuuma prootoneid ja neutroneid koos. Iooni laeng tekib siin elektronide arvu muutusest; tuuma osakesed jäävad alles.",
+              "Prootoneid on Z ja neutroneid A − Z. Positiivsel ioonil on elektrone vähem kui prootoneid, negatiivsel rohkem: elektronide arv = Z − laeng."
             ],
             "worked": {
               "prompt": "Berüllium-9 aatomnumber on 4. Mitu prootonit, neutronit ja elektroni on Be²⁺ ioonis?",
               "steps": [
+                "Be²⁺ on kaotanud kaks elektroni, kuid selle tuumas olevad prootonid ja neutronid pole muutunud.",
                 "Prootonid: Z = 4.",
                 "Neutronid: 9 − 4 = 5.",
                 "Elektronid: 4 − 2 = 2; tuum jääb samaks."
@@ -90,11 +92,13 @@
             "skill": "anion_and_neutrons",
             "title": "Aniooni neutronid ja elektronid",
             "explanation": [
-              "Neutronite arv on A − Z ega muutu elektroni liitmisel. Negatiivse iooni elektronide arv saadakse, kui neutraalse aatomi Z elektronile liita vastuvõetud elektronid."
+              "Negatiivne ioon on saanud elektrone juurde. Elektroni lisandumine ei muuda tuumas olevaid neutroneid ega elemendi prootonite arvu.",
+              "Neutroneid on A − Z. Elektronide arvuks liida neutraalse aatomi Z elektronile vastuvõetud elektronid."
             ],
             "worked": {
               "prompt": "Broom-81 aatomnumber on 35. Neutraalne aatom liidab ühe elektroni. Leia Br⁻ neutronid ja elektronid.",
               "steps": [
+                "Üks lisanduv elektron suurendab elektronide arvu ühe võrra; tuuma koostis jääb samaks.",
                 "Neutroneid on 81 − 35 = 46.",
                 "Elektrone on 35 + 1 = 36."
               ],
@@ -107,7 +111,8 @@
             "skill": "biological_ion_charge",
             "title": "Rakus oleva iooni laeng ja elektronide arv",
             "explanation": [
-              "Rakukeskkonnas oleva iooni laeng on prootonite arv miinus elektronide arv. Iooni tekkimisel ei muutu elemendi prootonite arv. Laeng üksi ei määra membraani läbimise suunda."
+              "Positiivne ioon tähendab, et negatiivseid elektrone on vähem kui positiivseid prootoneid. Iooni tekkimisel prootonite arv ei muutu.",
+              "Laeng on prootonite arv miinus elektronide arv. Laeng üksi ei määra membraani läbimise suunda."
             ],
             "worked": {
               "prompt": "Magneesiumi aatomnumber on 12. Mitu elektroni on rakus leiduval Mg²⁺ ioonil?",
@@ -318,14 +323,19 @@
         english: 'Moles, molar mass and stoichiometric ratios',
         why: 'Rakuhingamise võrrand seob glükoosi, hapniku ja süsihappegaasi ainehulgad. Koefitsiendid kirjeldavad osakeste ja moolide suhteid, mitte grammide suhteid.',
         explanation: [
-          'Ainehulk n (amount of substance) loendab osakesi moolides: 1 mol sisaldab täpselt 6,02214076 × 10²³ nimetatud osakest. Täpsusta, kas loendad aatomeid, molekule või ioone.',
-          'Molaarmass M (molar mass) seob massi m ja ainehulga: n = m / M. Kui m on grammides ja M ühikuga g/mol, saad n ühikuks mol. Suurema molaarmassiga aine sama mass sisaldab vähem moole.',
-          'Tasakaalustatud reaktsioonivõrrandi koefitsiendid annavad moolsuhte (mole ratio). Võrrandis 2H₂ + O₂ → 2H₂O annab 1 mol reageerinud O₂ kokku 2 mol H₂O, kui vesinikku jätkub. Koefitsiendid ei ütle, et 1 g hapnikust tekiks 2 g vett.',
-          'Glükoosi täieliku oksüdeerumise koondvõrrand on C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O. See sobib ainete koguste arvestuseks. Rakus toimub protsess paljude etappidena; võrrand ei ütle, kui kiiresti reaktsioon toimub ega mitu ATP molekuli tekib.'
+          "Ainehulk n (amount of substance) loendab osakesi moolides: 1 mol sisaldab täpselt 6,02214076 × 10²³ nimetatud osakest. Täpsusta, kas loendad aatomeid, molekule või ioone.",
+          "Molaarmass ütleb, kui palju kaalub üks mool ainet. Moolide leidmiseks küsime, mitu sellist ühe mooli massi mahub antud massi sisse: n = m / M. Kui m on grammides ja M ühikuga g/mol, saad n ühikuks mol. Sama massi korral tähendab suurem molaarmass vähem moole.",
+          "Tasakaalustatud reaktsioonivõrrandi koefitsiendid annavad moolsuhte (mole ratio). Võrrandis 2H₂ + O₂ → 2H₂O annab 1 mol reageerinud O₂ kokku 2 mol H₂O, kui vesinikku jätkub. Koefitsiendid ei ütle, et 1 g hapnikust tekiks 2 g vett.",
+          "Glükoosi täieliku oksüdeerumise koondvõrrand on C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O. See sobib ainete koguste arvestuseks. Rakus toimub protsess paljude etappidena; võrrand ei ütle, kui kiiresti reaktsioon toimub ega mitu ATP molekuli tekib."
         ],
         worked: {
           prompt: 'Glükoosi molaarmass on 180 g/mol. Mitu mooli CO₂ tekib 18 g glükoosi täielikul oksüdeerumisel, kui hapnikku on piisavalt?',
-          steps: ['Leia glükoosi ainehulk: n = 18 g / (180 g/mol) = 0,10 mol.', 'Koondvõrrandis on glükoosi ja CO₂ moolsuhe 1 : 6.', 'CO₂ ainehulk on 0,10 × 6 = 0,60 mol.'],
+          steps: [
+            "Reaktsioonivõrrand võrdleb moole, seega leiame kõigepealt, millise osa ühest moolist moodustab 18 g glükoosi.",
+            "Leia glükoosi ainehulk: n = 18 g / (180 g/mol) = 0,10 mol.",
+            "Koondvõrrandis on glükoosi ja CO₂ moolsuhe 1 : 6.",
+            "CO₂ ainehulk on 0,10 × 6 = 0,60 mol."
+          ],
           answer: 'Tekib 0,60 mol CO₂. See on ainehulga, mitte reaktsioonikiiruse ennustus.'
         },
         followupVersion: 1,
@@ -334,13 +344,14 @@
             "skill": "mass_to_moles",
             "title": "Massist ainehulga leidmine",
             "explanation": [
-              "Jaga aine mass molaarmassiga: n = m / M. Grammid taanduvad, kui M ühik on g/mol, ning vastuse ühik on mol."
+              "Molaarmass ütleb ühe mooli massi. Ainehulga leidmiseks küsi, mitu sellist massikogust proovis on. Pool ühe mooli massist tähendab poolt mooli.",
+              "n = m / M. Kui mass on grammides ja molaarmass ühikuga g/mol, jääb vastuse ühikuks mol."
             ],
             "worked": {
               "prompt": "CO₂ molaarmass on 44 g/mol. Mitu mooli on 22 g CO₂?",
               "steps": [
-                "Kirjuta n = m / M.",
-                "n = 22 g / (44 g/mol) = 0,50 mol."
+                "Üks mool CO₂ kaalub 44 g. Antud 22 g on sellest pool, seega ootame poolt mooli.",
+                "Valemiga sama mõte: n = m / M = 22 g / (44 g/mol) = 0,50 mol."
               ],
               "answer": "22 g CO₂ sisaldab 0,50 mol molekule."
             },
@@ -351,7 +362,8 @@
             "skill": "coefficient_ratio",
             "title": "Reaktsioonivõrrandi moolsuhe",
             "explanation": [
-              "Tasakaalustatud võrrandi koefitsiendid annavad moolide suhte. Korruta antud ainehulk otsitava aine koefitsiendiga ja jaga antud aine koefitsiendiga; teist lähteainet peab jätkuma."
+              "Tasakaalustatud võrrand kirjeldab osakeste reageerimise arvsuhet. Sama suhe kehtib moolide kohta, sest igas moolis on sama arv osakesi.",
+              "Korruta antud ainehulk otsitava aine koefitsiendiga ja jaga antud aine koefitsiendiga. Teist lähteainet peab jätkuma; grammide suhe ei pruugi olla sama."
             ],
             "worked": {
               "prompt": "Võrrand on 2Na + Cl₂ → 2NaCl. Mitu mooli NaCl tekib 0,50 mol Cl₂ reageerimisel, kui Na on liias?",
@@ -368,7 +380,8 @@
             "skill": "respiration_ratio",
             "title": "Glükoosi oksüdeerumise moolsuhe",
             "explanation": [
-              "Koondvõrrandis C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O vastab ühele moolile glükoosile kuus mooli CO₂ ja kuus mooli H₂O. Kasuta seda suhet täieliku oksüdeerumise ja piisava hapniku korral."
+              "Ühes glükoosimolekulis on kuus süsinikuaatomit. Täielikul oksüdeerumisel lähevad need kuude CO₂ molekuli; sama arvsuhe kehtib moolide kohta.",
+              "Koondvõrrand C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O annab glükoosi, CO₂ ja H₂O moolsuhte 1 : 6 : 6. Hapnikku peab jätkuma."
             ],
             "worked": {
               "prompt": "Mitu mooli CO₂ tekib 0,050 mol glükoosi täielikul oksüdeerumisel piisava hapnikuga?",
@@ -402,11 +415,13 @@
             "skill": "mass_ratio_transfer",
             "title": "Massiarvutus reaktsiooni moolsuhtega",
             "explanation": [
-              "Masside seostamiseks mine esmalt grammidest moolidesse, rakenda võrrandi koefitsientide suhet ja teisenda otsitavad moolid grammideks. Koefitsientide suhet ei saa otse massidele üle kanda."
+              "Reaktsioonivõrrand loendab osakesi ja moole. Eri ainete üks mool kaalub erinevalt, seega ei saa koefitsientide suhet otse grammidele üle kanda.",
+              "Teisenda antud mass moolideks, kasuta võrrandi moolsuhet ning teisenda otsitava aine moolid tema molaarmassiga grammideks."
             ],
             "worked": {
               "prompt": "N₂ + 3H₂ → 2NH₃. Kui palju H₂ on vaja 28 g N₂ täielikuks reageerimiseks? M(N₂) = 28 g/mol ja M(H₂) = 2 g/mol.",
               "steps": [
+                "Lämmastiku ja vesiniku moolid kaaluvad erinevalt; võrdleme kõigepealt moolide arvu.",
                 "n(N₂) = 28 / 28 = 1 mol.",
                 "Suhe N₂ : H₂ on 1 : 3, seega on vaja 3 mol H₂.",
                 "m(H₂) = 3 × 2 = 6 g."
@@ -447,14 +462,19 @@
         english: 'Molar concentration and dilution',
         why: 'Rakukeskkonna kirjeldamisel tuleb eristada lahustunud aine hulka ja selle kontsentratsiooni. Sama ainehulk võib olla jaotunud erineva suurusega ruumalasse.',
         explanation: [
-          'Molaarne kontsentratsioon c (molar concentration, molarity) on lahustunud aine ainehulk lahuse ruumala kohta: c = n / V. Kui n on moolides ja V liitrites, on ühik mol/L. 250 mL = 0,250 L. Ruumala tähendab kogu lahust, mitte ainult lisatud vett.',
-          'Ühest seosest saad ka n = c × V. Kontsentratsiooni kahekordistamine sama ruumala juures tähendab kaks korda suuremat ainehulka. Sama kontsentratsiooniga kaks eri mahuga proovi ei sisalda tingimata sama palju ainet.',
-          'Lahjendamisel lisatakse lahustit. Kui lahustunud aine ei reageeri ega lähe kaduma, jääb selle ainehulk samaks: c₁V₁ = c₂V₂. V₂ on lahuse lõppmaht. Näiteks 20 mL proovi lahjendamine lõppmahuni 100 mL teeb kontsentratsiooni viis korda väiksemaks.',
-          'Bioloogias aitab see lugeda kontsentratsioonigradiente. Iooni netoliikumist läbi membraani mõjutavad lisaks kontsentratsioonile elektriline erinevus ja membraani läbitavus. Ka osmoosi ennustamisel tuleb teada lahustunud osakeste arvu ja membraani omadusi; kõigi ainete võrdsed mol/L väärtused ei tähenda automaatselt sama osmootset mõju.'
+          "Kontsentratsioon ütleb, kui palju lahustunud ainet on kindlas lahusekoguses. Sama ainehulk suuremas lahusemahus tähendab lahjemat lahust. Molaarne kontsentratsioon loendab moole ühe liitri lahuse kohta: c = n / V. 250 mL = 0,250 L.",
+          "Kui tead ainehulka ühe liitri kohta, saad muu mahu ainehulga selle mahu võrra korrutades: n = c × V. Kahekordne lahusemaht sama kontsentratsiooni juures sisaldab kaks korda rohkem ainet.",
+          "Lahjendamisel lisame lahustit, mitte lahustunud ainet. Kui lahustunud aine ei reageeri ega lähe kaduma, jaotub sama ainehulk suuremasse mahtu. Näiteks 20 mL lahjendamine lõppmahuni 100 mL teeb kontsentratsiooni viis korda väiksemaks. Seda väljendab c₁V₁ = c₂V₂; V₂ on kogu lahuse lõppmaht.",
+          "Bioloogias aitab see lugeda kontsentratsioonigradiente. Iooni netoliikumist läbi membraani mõjutavad lisaks kontsentratsioonile elektriline erinevus ja membraani läbitavus. Ka osmoosi ennustamisel tuleb teada lahustunud osakeste arvu ja membraani omadusi; kõigi ainete võrdsed mol/L väärtused ei tähenda automaatselt sama osmootset mõju."
         ],
         worked: {
           prompt: '40 mL glükoosilahust kontsentratsiooniga 0,50 mol/L lahjendatakse lõppmahuni 200 mL. Glükoos ei reageeri ega lähe kaduma. Leia uus kontsentratsioon.',
-          steps: ['Lõppmaht on 200 mL, mitte 40 + 200 mL.', 'Kasuta c₂ = c₁V₁ / V₂. Mahud võivad suhtes olla samas ühikus.', 'c₂ = 0,50 × 40 / 200 = 0,10 mol/L.'],
+          steps: [
+            "Sama glükoosikogus jaotub viiekordsesse lahusemahtu: 200 / 40 = 5. Kontsentratsioon peab vähenema viis korda.",
+            "Uus kontsentratsioon on 0,50 / 5 = 0,10 mol/L.",
+            "Valemiga sama mõte: c₂ = c₁V₁ / V₂ = 0,50 × 40 / 200 = 0,10 mol/L. Mõlemad mahud on samas ühikus.",
+            "200 mL on kogu lõppmaht, mitte lisatava vee maht."
+          ],
           answer: 'Uus kontsentratsioon on 0,10 mol/L; glükoosi ainehulk jääb samaks.'
         },
         followupVersion: 1,
@@ -463,13 +483,14 @@
             "skill": "molarity_from_amount",
             "title": "Kontsentratsioon ainehulgast ja mahust",
             "explanation": [
-              "Molaarne kontsentratsioon on c = n / V. Kasuta lahustunud aine moole ja kogu lahuse mahtu liitrites; vastuse ühik on mol/L."
+              "Kontsentratsioon küsib, kui palju lahustunud ainet on ühes liitris lahuses. Jaota kogu ainehulk lahuse liitrite peale.",
+              "c = n / V. Kasuta moole ja kogu lahuse mahtu liitrites; vastuse ühik on mol/L."
             ],
             "worked": {
               "prompt": "Lahuses on 0,40 mol ainet ning lahuse lõppmaht on 2,0 L. Leia kontsentratsioon.",
               "steps": [
-                "c = n / V.",
-                "c = 0,40 mol / 2,0 L = 0,20 mol/L."
+                "0,40 mol on jaotunud kahe liitri peale. Ühes liitris on pool sellest ehk 0,20 mol.",
+                "Valemiga: c = n / V = 0,40 mol / 2,0 L = 0,20 mol/L."
               ],
               "answer": "Kontsentratsioon on 0,20 mol/L."
             },
@@ -480,11 +501,13 @@
             "skill": "amount_with_unit_conversion",
             "title": "Ainehulk milliliitrites antud lahusest",
             "explanation": [
-              "Leia ainehulk valemiga n = c × V. Kui c on mol/L, teisenda milliliitrid enne liitriteks: V(L) = V(mL) / 1000."
+              "Kontsentratsioon annab ainehulga ühes liitris. Väiksem lahuseproov sisaldab samas suhtes vähem ainet, suurem proov rohkem.",
+              "n = c × V. Kui c on mol/L, kirjuta ka maht liitrites: V(L) = V(mL) / 1000."
             ],
             "worked": {
               "prompt": "Leia ainehulk 200 mL lahuses kontsentratsiooniga 0,30 mol/L.",
               "steps": [
+                "200 mL on viiendik liitrist, seega sisaldab see viiendiku ühe liitri ainehulgast.",
                 "200 mL = 0,200 L.",
                 "n = 0,30 mol/L × 0,200 L = 0,060 mol."
               ],
@@ -497,7 +520,8 @@
             "skill": "dilution_final_volume",
             "title": "Kontsentratsioon lahjendamise lõppmahust",
             "explanation": [
-              "Lahjendamisel säilib ainehulk, kui aine ei reageeri ega kao. Uus kontsentratsioon on c₂ = c₁V₁ / V₂; V₂ on kogu lahuse lõppmaht, millele algmahtu juurde ei liideta."
+              "Vee lisamisel ei lisandu lahustunud ainet. Sama ainehulk jaotub suuremasse mahtu, nii et lahus muutub lahjemaks. See eeldab, et aine ei reageeri ega kao.",
+              "Mahtude suurenemise teguriga tuleb kontsentratsioon jagada: c₂ = c₁V₁ / V₂. V₂ on kogu lõppmaht; algmahtu sellele juurde ei liideta."
             ],
             "worked": {
               "prompt": "30 mL lahust kontsentratsiooniga 1,0 mol/L lahjendatakse lõppmahuni 150 mL. Aine ei reageeri ega kao. Leia uus kontsentratsioon.",
@@ -514,14 +538,17 @@
             "skill": "stock_volume_transfer",
             "title": "Lahjendamiseks vajaliku lähtelahuse maht",
             "explanation": [
-              "Kui aine ei reageeri ega kao, siis c₁V₁ = c₂V₂. Lähtelahuse maht on V₁ = c₂V₂ / c₁; V₂ tähendab lahuse lõppmahtu."
+              "Lähtelahus on valmis kontsentreeritum lahus, millest võtame vajaliku osa. Vett lisades jaotub selles olev sama ainehulk suuremasse mahtu: lahus muutub lahjemaks.",
+              "Kui lähtelahus on soovitud lahusest kümme korda kontsentreeritum, peab võetud osa maht suurenema kümme korda. See eeldab, et lahustunud aine ei reageeri ega lähe kaduma.",
+              "Sama ainehulga säilimist väljendab c₁V₁ = c₂V₂, seega V₁ = c₂V₂ / c₁. c₁ ja c₂ on algne ja lõplik kontsentratsioon; V₁ on võetud lähtelahuse maht ning V₂ kogu lõppmaht."
             ],
             "worked": {
               "prompt": "Kui palju 2,0 mol/L lähtelahust on vaja 250 mL lahuse valmistamiseks kontsentratsiooniga 0,20 mol/L?",
               "steps": [
-                "Ainehulga säilimisel V₁ = c₂V₂ / c₁.",
-                "V₁ = 0,20 × 250 / 2,0 = 25 mL.",
-                "Mõõda 25 mL lähtelahust ja lahjenda lõppmahuni 250 mL."
+                "2,0 mol/L on kümme korda suurem kui 0,20 mol/L. Seega peab võetud lähtelahuse maht suurenema kümme korda.",
+                "250 mL lõppmahu jaoks võtame 250 / 10 = 25 mL lähtelahust.",
+                "Lisa vett, kuni kogu lahust on 250 mL. See ei tähenda 250 mL vee lisamist.",
+                "Valemiga sama mõte: V₁ = (0,20 / 2,0) × 250 mL = 25 mL. Kontsentratsioonide ühikud taanduvad, maht jääb milliliitrites."
               ],
               "answer": "Vaja on 25 mL lähtelahust; 250 mL on lõppmaht."
             },
@@ -532,11 +559,13 @@
             "skill": "dilution_amount_conservation",
             "title": "Lahjendamisel säiliv ainehulk ja uus kontsentratsioon",
             "explanation": [
-              "Lahjendamisel ainehulk säilib, kui aine ei reageeri ega lähe kaduma. Leia algne n = c₁V₁ liitrites antud mahuga; uus kontsentratsioon on c₂ = n / V₂."
+              "Lahjendamisel lisandub lahustit, kuid lahustunud aine kogus jääb samaks, kui aine ei reageeri ega kao. Muutub aine jaotumine mahu peale, mitte ainehulk.",
+              "Leia säiliv ainehulk n = c₁V₁, kasutades mahtu liitrites. Jaga see kogu lõppmahuga: c₂ = n / V₂."
             ],
             "worked": {
               "prompt": "50 mL lahust kontsentratsiooniga 0,30 mol/L lahjendatakse lõppmahuni 150 mL. Aine ei reageeri ega kao. Leia uus kontsentratsioon ja ainehulk.",
               "steps": [
+                "Maht kasvab kolm korda, seega sama ainehulga kontsentratsioon peab vähenema kolm korda.",
                 "Algne ja lõplik ainehulk: n = 0,30 × 0,050 = 0,015 mol.",
                 "Lõppmaht: 150 mL = 0,150 L.",
                 "c₂ = 0,015 / 0,150 = 0,10 mol/L."
