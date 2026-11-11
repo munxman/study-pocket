@@ -52,6 +52,7 @@
     } catch {}
   }
   function save() {
+    updateHeroLabel();
     if (blocked) { protectSavedWork(blocked); return false; }
     try {
       const latest = localStorage.getItem(key);
@@ -83,20 +84,35 @@
   }
   function attempt(topic, index) { state.practice[topic] ||= []; return state.practice[topic][index] ||= { value: '', working: '', help: false, attempts: [] }; }
   function plan() { return state.diagnostic.submitted ? E.rankTopics(data, state.diagnostic.submitted.values) : null; }
+  function updateHeroLabel() {
+    const d = state.diagnostic;
+    const started = d.submitted || state.mock || d.index > 0 || d.values.some(v => v.trim()) || d.working.some(v => v.trim());
+    byId('sprint-next').textContent = started ? 'Jätkan sealt, kuhu jäin' : 'Alustan ühe ülesandega';
+  }
+  function navigateNextStep() {
+    const step = E.nextStep(state, data);
+    if (step.kind === 'diagnostic') go('eeldiagnoos');
+    else if (step.kind === 'target') { targetUI.show(step.skill, step.phase); go('harjuta'); }
+    else if (step.kind === 'practice') { showPractice(step.topic, step.index); go('harjuta'); }
+    else if (step.kind === 'mock') go('proovitoo');
+    else go(state.mock?.revealed === false ? 'mock-reveal' : 'mock-key');
+  }
+  byId('sprint-next').addEventListener('click', navigateNextStep);
   function route() {
+    updateHeroLabel();
     const box = byId('coach-next'), step = E.nextStep(state, data);
     box.replaceChildren(el('h2', 'Üks järgmine samm'));
     const p = plan();
     if (p) box.append(el('p', 'Sinu kaks harjutusteemat: ' + p.topics.map(t => data.topics[t]).join(' · ') + '.'));
     if (step.kind === 'diagnostic') {
-      box.append(el('p', 'Alusta ühe ülesandega. Eeldiagnoosi võid jagada 2–5 minuti pikkusteks kordadeks; vastused jäävad alles.'), button('Jätkan eeldiagnoosi', () => go('eeldiagnoos'), 'primary'));
+      box.append(el('p', 'Alusta ühe ülesandega. Eeldiagnoosi võid jagada 2–5 minuti pikkusteks kordadeks; vastused jäävad alles.'), button('Jätkan eeldiagnoosi', navigateNextStep, 'primary'));
     } else if (step.kind === 'target') {
-      box.append(el('p', 'Järgmiseks: ' + bank.skills[step.skill].title + (step.phase === 'practice' ? ' · üks sobiv harjutus.' : ' · uus ülesanne ilma näidet ees hoidmata.')), button('Teen ühe ülesande', () => { targetUI.show(step.skill, step.phase); go('harjuta'); }, 'primary'));
+      box.append(el('p', 'Järgmiseks: ' + bank.skills[step.skill].title + (step.phase === 'practice' ? ' · üks sobiv harjutus.' : ' · uus ülesanne ilma näidet ees hoidmata.')), button('Teen ühe ülesande', navigateNextStep, 'primary'));
     } else if (step.kind === 'practice') {
-      box.append(el('p', 'Järgmiseks: ' + data.topics[step.topic] + ' · ülesanne ' + (step.index + 1) + '/2. Umbes 2–5 min; rohkem aega on täiesti sobiv.'), button('Teen ühe ülesande', () => { showPractice(step.topic, step.index); go('harjuta'); }, 'primary'));
+      box.append(el('p', 'Järgmiseks: ' + data.topics[step.topic] + ' · ülesanne ' + (step.index + 1) + '/2. Umbes 2–5 min; rohkem aega on täiesti sobiv.'), button('Teen ühe ülesande', navigateNextStep, 'primary'));
     } else if (step.kind === 'mock') {
-      box.append(el('p', state.mock ? (state.mock.mode === 'practice' ? 'Jätka sama ülesannet või tee järgmine väike samm. Osadena harjutusel ei ole taimerit.' : 'Jätka pooleli proovitööd. Ajastatud töö kell käib ka siis, kui leht on suletud.') : 'Põhiharjutuste järel saad proovida teistsuguseid ülesandeid. Vali rahulik 35-minutiline aeg või tee proovitöö osadena, ilma ajasurveta. Edasilükatud lisavõte ei ole lahendatud ülesanne.'), button(state.mock ? 'Jätkan proovitööd' : 'Valin proovitöö viisi', () => go('proovitoo'), 'primary'));
-    } else box.append(el('p', 'Vaata üle lahenduskäigud, mitte ainult lõppvastused. Kiirkordus jääb neljapäeval enne kontrolltööd.'), button('Vaatan lahenduskäike', () => go(state.mock?.revealed === false ? 'mock-reveal' : 'mock-key'), 'primary'));
+      box.append(el('p', state.mock ? (state.mock.mode === 'practice' ? 'Jätka sama ülesannet või tee järgmine väike samm. Osadena harjutusel ei ole taimerit.' : 'Jätka pooleli proovitööd. Ajastatud töö kell käib ka siis, kui leht on suletud.') : 'Põhiharjutuste järel saad proovida teistsuguseid ülesandeid. Vali rahulik 35-minutiline aeg või tee proovitöö osadena, ilma ajasurveta. Edasilükatud lisavõte ei ole lahendatud ülesanne.'), button(state.mock ? 'Jätkan proovitööd' : 'Valin proovitöö viisi', navigateNextStep, 'primary'));
+    } else box.append(el('p', 'Vaata üle lahenduskäigud, mitte ainult lõppvastused. Kiirkordus jääb neljapäeval enne kontrolltööd.'), button('Vaatan lahenduskäike', navigateNextStep, 'primary'));
     box.append(button('Praegu paus', () => { if (!save()) { byId('pause-note').textContent = 'Töö pole salvestatud. Hoia leht lahti ja kasuta allpool töö koopia salvestamist.'; return; } byId('pause-note').textContent = state.mock && !state.mock.finished && state.mock.mode !== 'practice' ? 'Ajastatud töö kell jätkub. Kui paus on vajalik, vali proovitöö juures „Jätkan osadena”.' : 'Paus sobib. Järgmisel avamisel ootab sama järgmine samm.'; }));
   }
   function showDiagnostic() {
@@ -111,7 +127,7 @@
       box.replaceChildren(el('h3', answered ? 'Eeldiagnoos: ' + earned.filter(Boolean).length + '/' + answered + ' vastatud ülesandest õige' : 'Alustame põhivõttest · oskused veel hindamata'), el('p', (data.diagnostic.length - answered) + ' jäeti vastamata. Vastamata ei tähenda, et sa ei oska. See lühitest ei ole koolihinne.'));
       const reasons = { errors: 'siin tuli viga', unanswered: 'vajab veel kontrollimist', transfer: 'proovime teistsugust rakendust' };
       p.topics.forEach(t => box.append(el('p', data.topics[t] + ' — ' + reasons[p.reasons[t]] + '.')));
-      box.append(button('Alustan esimest harjutusteemat', () => { const step = E.nextStep(state, data); if (step.kind === 'target') targetUI.show(step.skill, step.phase); else if (step.kind === 'practice') showPractice(step.topic, step.index); go('harjuta'); }, 'primary'));
+      box.append(button('Jätkan õppimist', navigateNextStep, 'primary'));
       const details = el('details'); details.append(el('summary', 'Vaata eeldiagnoosi vastuseid ja selgitusi'));
       data.diagnostic.forEach((q, i) => details.append(el('p', (i + 1) + '. ' + (values[i].trim() === '' ? 'Vastamata. ' : earned[i] ? 'Õige. ' : 'Vaatame üle. ') + q.explanation)));
       box.append(details); return;

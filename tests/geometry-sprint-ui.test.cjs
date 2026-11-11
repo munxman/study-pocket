@@ -98,9 +98,33 @@ function harness({ storage = new Map(), storageFailure = false, clipboardFailure
   return h;
 }
 
+async function assertResumeActions(h, destination, prompt) {
+  assert.equal(h.document.scrolledTo, null, 'loading never navigates automatically');
+  const before = h.state();
+  const actions = [h.id('sprint-next'), h.id('coach-next').querySelector('.primary')];
+  if (before.diagnostic.submitted) actions.push(h.id('diagnostic-result').querySelector('.primary'));
+  for (const action of actions) {
+    assert.ok(action, 'continuation action exists');
+    await action.click();
+    assert.equal(h.document.scrolledTo, destination);
+    assert.equal(h.document.activeElement, h.id(destination));
+    if (prompt) assert.equal(h.answerField(h.id('guided-practice')).getAttribute('aria-label'), prompt);
+    assert.deepEqual(h.state(), before, 'navigation preserves the saved work and assessment state');
+  }
+}
+
+test('Fresh hero starts at the diagnostic in one click without creating progress', async () => {
+  const h = harness({ targeted: true });
+  assert.equal(h.id('sprint-next').textContent, 'Alustan ühe ülesandega');
+  await assertResumeActions(h, 'eeldiagnoos');
+  assert.equal(h.state().diagnostic.index, 0);
+  assert.equal(h.state().diagnostic.submitted, null);
+});
+
 test('Diagnostic answers and reasoning autosave per input and resume at the next question after reload', async () => {
   let h = harness();
   await h.input(h.answerField(h.id('diagnostic-questions')), '1620');
+  assert.equal(h.id('sprint-next').textContent, 'Jätkan sealt, kuhu jäin');
   await h.input(h.id('diagnostic-questions').querySelector('textarea'), '9 kolmnurka, igaüks 180 kraadi');
   await h.click('Salvesta ja järgmine', h.id('diagnostic-nav'));
   h = h.reload();
@@ -109,8 +133,73 @@ test('Diagnostic answers and reasoning autosave per input and resume at the next
   assert.equal(h.state().diagnostic.submitted, null);
   assert.equal(h.state().diagnostic.index, 1);
   assert.equal(h.answerField(h.id('diagnostic-questions')).getAttribute('aria-label'), DATA.diagnostic[1].prompt);
+  assert.equal(h.id('sprint-next').textContent, 'Jätkan sealt, kuhu jäin');
+  await assertResumeActions(h, 'eeldiagnoos');
   await h.click('Eelmine', h.id('diagnostic-nav'));
   assert.equal(h.answerField(h.id('diagnostic-questions')).value, '1620');
+});
+
+test('All continuation actions resume the exact diagnostic target and later transfer without restarting', async () => {
+  let h = harness({ targeted: true });
+  const bank = require('../src/geometry-sprint-targets.js'), values = DATA.diagnostic.map(q => String(q.answer));
+  values[1] = '-1'; values[7] = '';
+  await h.fillDiagnostic(values);
+  h = h.reload();
+  assert.deepEqual(h.state().targeted.skills, ['polygon_diagonal_count', 'parallelogram_included_angle_area']);
+  const skill = bank.skills.polygon_diagonal_count;
+  assert.equal(h.id('sprint-next').textContent, 'Jätkan sealt, kuhu jäin');
+  assert.equal(h.id('diagnostic-result').querySelector('.primary').textContent, 'Jätkan õppimist');
+  await assertResumeActions(h, 'harjuta', skill.practice.prompt);
+  const diagnostic = h.state().diagnostic;
+  await h.input(h.answerField(h.id('guided-practice')), String(skill.practice.answer));
+  await h.submit(h.id('guided-practice').querySelector('form'));
+  const first = h.state().targeted.items[skill.practice.id].attempts[0];
+  await h.id('sprint-next').click();
+  assert.equal(h.document.scrolledTo, 'harjuta');
+  assert.equal(h.answerField(h.id('guided-practice')).getAttribute('aria-label'), skill.transfer.prompt);
+  assert.deepEqual(h.state().diagnostic, diagnostic);
+  assert.deepEqual(h.state().targeted.items[skill.practice.id].attempts[0], first);
+  await h.input(h.answerField(h.id('guided-practice')), '65');
+  h = h.reload();
+  await assertResumeActions(h, 'harjuta', skill.transfer.prompt);
+  assert.equal(h.answerField(h.id('guided-practice')).value, '65');
+  assert.equal(h.state().targeted.items[skill.transfer.id].attempts.length, 0);
+});
+
+test('Continuation actions preserve an unfinished legacy practice question', async () => {
+  const seed = E.fresh(DATA), lesson = DATA.lessons.find(l => l.topic === 'angles');
+  seed.diagnostic.submitted = { values: DATA.diagnostic.map(q => String(q.answer)), working: [], at: START };
+  seed.practice.angles = [
+    { value: String(lesson.practice[0].answer), working: 'Earlier working', attempts: [{ correct: true, at: START }] },
+    { value: 'Legacy draft', working: 'Keep this working', attempts: [] },
+  ];
+  const h = harness({ targeted: true, storage: new Map([[KEY, JSON.stringify(seed)]]) });
+  await assertResumeActions(h, 'harjuta', lesson.practice[1].prompt);
+  assert.equal(h.answerField(h.id('guided-practice')).value, 'Legacy draft');
+  assert.equal(h.state().targeted, undefined);
+});
+
+test('Continuation actions reach mock choice, active mock, and visible review without starting or revealing work', async () => {
+  const scenarios = [
+    { mock: null, destination: 'proovitoo' },
+    { mock: { mode: 'practice', started: START - 60000, finished: false, index: 2, working: ['', '', 'Saved draft'] }, destination: 'proovitoo' },
+    { mock: { mode: 'timed', started: START - 60000, finished: false, index: 1, working: ['', 'Timed draft'] }, destination: 'proovitoo' },
+    { mock: { mode: 'timed', started: START - 36 * 60000, finished: false, working: ['Before deadline'] }, destination: 'mock-reveal' },
+    { mock: { mode: 'practice', started: START - 60000, finished: true, revealed: true, working: ['Finished work'] }, destination: 'mock-key' },
+  ];
+  for (const { mock, destination } of scenarios) {
+    const seed = E.fresh(DATA), values = DATA.diagnostic.map(q => String(q.answer));
+    seed.diagnostic.submitted = { values, working: [], at: START };
+    for (const topic of E.rankTopics(DATA, values).topics) seed.practice[topic] = [{ attempts: [{ correct: true }] }, { attempts: [{ correct: false }] }];
+    seed.mock = mock;
+    const h = harness({ storage: new Map([[KEY, JSON.stringify(seed)]]) });
+    await assertResumeActions(h, destination);
+    if (!mock) assert.equal(h.state().mock, null, 'navigation does not start a timed assessment');
+    if (destination === 'mock-reveal') {
+      assert.equal(h.id('mock-reveal').hidden, false);
+      assert.equal(h.id('mock-key').hidden, true, 'navigation does not reveal the answers');
+    }
+  }
 });
 
 test('Submitted diagnostic chooses two topics and four short submitted steps lead to an unstarted mock choice', async () => {
