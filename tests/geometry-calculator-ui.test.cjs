@@ -68,13 +68,13 @@ class Element {
   querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
 }
 
-function documentFixture() {
+function documentFixture(page = 'geometry-sprint.html') {
   const document = { activeElement: null, listeners: new Map(), lookups: [] };
   document.body = new Element('body', document);
   document.body.parentNode = document;
   document.addEventListener = Element.prototype.addEventListener;
   document.getElementById = id => { document.lookups.push(id); return document.body.querySelector('#' + id); };
-  const html = fs.readFileSync(path.join(__dirname, '../src/geometry-sprint.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../src', page), 'utf8');
   const stack = [document.body], voids = new Set(['meta', 'link', 'input', 'br', 'hr']);
   for (const token of html.match(/<[^>]+>|[^<]+/g)) {
     if (token.startsWith('<!')) continue;
@@ -94,19 +94,27 @@ function documentFixture() {
   return document;
 }
 
-function harness({ clipboardMode = 'success' } = {}) {
-  const document = documentFixture(), forbiddenAccess = [], clipboard = [], globalListeners = new Map();
+function harness({ clipboardMode = 'success', page = 'geometry-sprint.html' } = {}) {
+  const document = documentFixture(page), forbiddenAccess = [], clipboard = [], globalListeners = new Map();
   const lessonEvents = [], lessonFields = [], lessonForms = [];
-  for (const [containerId, formId] of [['diagnostic-questions', 'diagnostic-form'], ['guided-practice', null], ['mock-questions', null]]) {
+  const lessonContainers = page === 'quant.html' ? [['quant-coach', null]] : [['diagnostic-questions', 'diagnostic-form'], ['guided-practice', null], ['mock-questions', null]];
+  for (const [containerId, formId] of lessonContainers) {
     const container = document.getElementById(containerId);
     assert.ok(container, 'existing lesson container: ' + containerId);
     const form = formId ? document.getElementById(formId) : new Element('form', document);
     if (!formId) container.append(form);
     lessonForms.push(form);
     form.addEventListener('submit', () => lessonEvents.push(containerId + ':submit'));
-    for (const tag of ['input', 'textarea']) {
+    if (page === 'quant.html') {
+      container.setAttribute('data-saved-stage', 'check');
+      // Quant delegates answer submission and changes to this container.
+      for (const type of ['submit', 'change']) container.addEventListener(type, () => lessonEvents.push(containerId + ':delegated-' + type));
+    }
+    for (const [tag, name] of page === 'quant.html' ? [['input', 'choice'], ['input', 'confidence'], ['textarea', 'working']] : [['input', 'answer'], ['textarea', 'working']]) {
       const node = new Element(tag, document);
-      node.value = containerId + (tag === 'input' ? ': saved answer 1620' : ': original method and unfinished draft');
+      node.value = name === 'confidence' ? 'sure' : containerId + (tag === 'input' ? ': saved answer 1620' : ': original method and unfinished draft');
+      node.setAttribute('name', name);
+      if (page === 'quant.html' && tag === 'input') { node.setAttribute('type', 'radio'); node.checked = true; }
       node.setAttribute('data-existing-lesson-field', tag);
       node.addEventListener('input', () => lessonEvents.push(containerId + ':input'));
       node.addEventListener('change', () => lessonEvents.push(containerId + ':change'));
@@ -114,7 +122,8 @@ function harness({ clipboardMode = 'success' } = {}) {
       lessonFields.push(node);
     }
   }
-  const savedLessonFields = lessonFields.map(node => ({ value: node.value, readOnly: node.readOnly, disabled: node.disabled, attributes: { ...node.attributes } }));
+  const fieldSnapshot = () => lessonFields.map(node => ({ value: node.value, checked: node.checked, readOnly: node.readOnly, disabled: node.disabled, attributes: { ...node.attributes } }));
+  const savedLessonFields = fieldSnapshot();
   const context = {
     document,
     navigator: clipboardMode === 'missing' ? {} : { clipboard: { async writeText(value) {
@@ -124,7 +133,7 @@ function harness({ clipboardMode = 'success' } = {}) {
     addEventListener(type, fn) { const list = globalListeners.get(type) || []; list.push(fn); globalListeners.set(type, list); }
   };
   context.window = context;
-  for (const name of ['localStorage', 'sessionStorage', 'indexedDB', 'fetch', 'XMLHttpRequest', 'WebSocket', 'BackupStore', 'StudySync', 'GeometrySprintEngine', 'GeometrySprintContent', 'GeometrySprintTargets', 'GeometryReportAdapter', 'GeometryReportModel', 'setInterval', 'clearInterval']) {
+  for (const name of ['localStorage', 'sessionStorage', 'indexedDB', 'fetch', 'XMLHttpRequest', 'WebSocket', 'BackupStore', 'StudySync', 'QuantEngine', 'QuantContent', 'ChemistryContent', 'GeometrySprintEngine', 'GeometrySprintContent', 'GeometrySprintTargets', 'GeometryReportAdapter', 'GeometryReportModel', 'setInterval', 'clearInterval']) {
     Object.defineProperty(context, name, { get() { forbiddenAccess.push(name); throw Error('Unexpected calculator access: ' + name); } });
   }
   document.lookups = [];
@@ -146,7 +155,8 @@ function harness({ clipboardMode = 'success' } = {}) {
     async input(value) { h.id('expression').value = value; await h.id('expression').emit('input'); },
     async select(start, end = start) { h.id('expression').setSelectionRange(start, end); await h.id('expression').emit('select'); },
     assertLessonUnchanged() {
-      assert.deepEqual(lessonFields.map(node => ({ value: node.value, readOnly: node.readOnly, disabled: node.disabled, attributes: { ...node.attributes } })), savedLessonFields);
+      assert.deepEqual(fieldSnapshot(), savedLessonFields);
+      if (page === 'quant.html') assert.equal(document.body.querySelector('#quant-coach').getAttribute('data-saved-stage'), 'check');
       assert.deepEqual(lessonEvents, []);
       assert.deepEqual(forbiddenAccess, []);
       assert.ok(document.lookups.every(id => id.startsWith('geometry-calc-')), 'calculator only looks up its own DOM controls');
@@ -333,4 +343,45 @@ test('Simulated DOM: clipboard copy is explicit and missing or denied clipboard 
     }
     h.assertLessonUnchanged();
   }
+});
+
+test('Simulated DOM: quantitative calculator solves dilution and amount without changing selected work', async () => {
+  const h = harness({ page: 'quant.html' }); await h.open();
+  await h.press('0', ',', '4', '0', '×', '7', '5', '÷', '3', '0', '0', 'equals');
+  assert.equal(h.id('result').value, '0,1', 'final concentration in mol/L');
+  h.assertLessonUnchanged();
+  await h.press('clear', '0', ',', '4', '×', '0', ',', '0', '7', '5', 'equals');
+  assert.equal(h.id('result').value, '0,03', 'moles from concentration times volume in litres');
+  await h.id('close').click();
+  assert.equal(h.document.activeElement, h.id('toggle'));
+  await h.open();
+  assert.equal(h.id('result').value, '0,03');
+  assert.equal(h.id('expression').value, '0,4×0,075');
+  h.assertLessonUnchanged();
+});
+
+test('Simulated DOM: quantitative calculator power keys and Enter stay separate from lesson submission', async () => {
+  const h = harness({ page: 'quant.html' }); await h.open();
+  await h.press('3', '×', '1', '0', '^', '8', 'equals');
+  assert.equal(h.id('result').value, '300000000');
+  await h.input('6.63e-34*3e8/(500e-9)');
+  const event = await h.id('expression').emit('keydown', { key: 'Enter' });
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(h.id('result').value, '3,978e-19');
+  await h.id('form').emit('submit');
+  h.assertLessonUnchanged();
+});
+
+test('Simulated DOM: quantitative calculator is outside the redrawn lesson container with non-submitting keys', async () => {
+  const h = harness({ page: 'quant.html' });
+  for (let node = h.id('form').parentNode; node; node = node.parentNode) {
+    assert.notEqual(node.id, 'quant-coach', 'lesson rendering cannot remove calculator scratch state');
+    assert.notEqual(node.tagName, 'FORM', 'calculator form is not nested in an answer form');
+  }
+  for (const button of [h.id('toggle'), ...h.id('panel').querySelectorAll('button')]) assert.equal(button.getAttribute('type'), 'button');
+  await h.open(); await h.press('1', '÷', '0', 'equals');
+  assert.match(h.id('note').textContent, /Nulliga ei saa jagada/);
+  await h.press('back', '2', 'equals');
+  assert.equal(h.id('result').value, '0,5', 'calculation remains usable after an invalid expression');
+  h.assertLessonUnchanged();
 });
