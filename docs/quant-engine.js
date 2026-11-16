@@ -50,6 +50,32 @@
   return evidence;
  }
  function dueSkills(s,b,t,now){const e=skillEvidence(s,b,t.id);return routeIndices(t).map(i=>({i,r:route(t,i),c:e[route(t,i).skill]})).filter(x=>x.c?.attempts&&x.c.due<=now).sort((a,b)=>Number(b.c.needsHelp)-Number(a.c.needsHelp)||a.c.due-b.c.due||a.i-b.i);}
+ // Read-only home guidance. Only dated, attributable attempts may select a
+ // skill; an unknown/future/guest record cannot become a personal difficulty.
+ // Current cards do not decide what was missed: replay the immutable attempts.
+ function recommendSkill(raw,b,now=Date.now()){
+  if(!time(now)||!b?.topics)return null;let s;
+  try{s=restore(raw,b);}catch{return null;}
+  const valid=a=>a.kind==='quantitative'&&(!a.participant||['learner','hendrik'].includes(a.participant))&&!a.paper&&!String(a.id).startsWith('trial-')&&time(a.startedAt)&&a.startedAt<=now&&['answeredAt','taughtAt','checkAnsweredAt','completedAt','helpedAt'].every(k=>!a[k]||time(a[k])&&a[k]>=a.startedAt&&a[k]<=now);
+  // Unknown historical support must not masquerade as confirmed independent
+  // success when deciding whether an old miss is still worth checking.
+  s.sessions=s.sessions.filter(valid).map(a=>a.assisted===false?a:{...a,assisted:true});
+  const result=[];
+  for(const t of b.topics){
+   const stored=s.cards[t.id];if(stored&&['lastExposure','lastExternalExposure','lastAt'].some(k=>stored[k]&&(!time(stored[k])||stored[k]>now)))continue;
+   const evidence=skillEvidence(s,b,t.id),rows=s.sessions.filter(a=>a.concept===t.id);
+   for(const i of routeIndices(t)){
+    const r=route(t,i),c=evidence[r.skill];if(!matching(t,r)||!c?.needsHelp||!c.attempts||c.due>now||now-c.lastExposure<DAY)continue;
+    let lastEvidenceAt=0;
+    for(const a of rows){
+     if(t.questions[a.questionIndex]?.skill===r.skill&&time(a.answeredAt)&&(a.correct===false||a.correct===true&&a.confidence==='unsure'))lastEvidenceAt=Math.max(lastEvidenceAt,a.answeredAt);
+     if(t.questions[a.checkIndex]?.skill===r.skill&&a.checkCorrect===false)lastEvidenceAt=Math.max(lastEvidenceAt,time(a.checkAnsweredAt||a.completedAt));
+    }
+    if(lastEvidenceAt)result.push({concept:t.id,skill:r.skill,lastEvidenceAt,dueAt:c.due,eligible:true,reason:'unresolved-skill'});
+   }
+  }
+  return result.sort((a,b)=>a.dueAt-b.dueAt||a.lastEvidenceAt-b.lastEvidenceAt||a.concept.localeCompare(b.concept)||a.skill.localeCompare(b.skill))[0]||null;
+ }
  function candidate(s,b,now,exclude){
   let choices=b.topics.filter(t=>t.id!==exclude);if(!choices.length)choices=b.topics;
   const due=choices.map(t=>({t,d:dueSkills(s,b,t,now)[0]})).filter(x=>x.d).sort((a,b)=>Number(b.d.c.needsHelp)-Number(a.d.c.needsHelp)||a.d.c.due-b.d.c.due);
@@ -58,12 +84,13 @@
   const unseen=choices.filter(t=>!s.sessions.some(a=>a.concept===t.id&&a.answeredAt));if(unseen.length)return unseen[0];
   return choices.filter(t=>FIRST.some(i=>!seen(s,t.id).has(i))).sort((a,b)=>(s.cards[a.id]?.lastExposure||0)-(s.cards[b.id]?.lastExposure||0))[0]||null;
  }
- function start(s,b,now=Date.now(),concept=null,exclude=null){
+ function start(s,b,now=Date.now(),concept=null,exclude=null,preferredSkill=null){
   const waiting=s.sessions.filter(a=>a.stage!=='done');
   const resume=concept?waiting.find(a=>a.concept===concept):active(s)&&active(s).stage!=='done'?active(s):waiting.at(-1);
   if(resume){s.activeId=resume.id;return resume;}
   const t=concept?b.topics.find(t=>t.id===concept):candidate(s,b,now,exclude);if(!t)return null;
-  const used=seen(s,t.id),due=dueSkills(s,b,t,now)[0];
+  const requested=preferredSkill&&routeIndices(t).find(i=>route(t,i).skill===preferredSkill&&matching(t,route(t,i)));
+  const used=seen(s,t.id),due=Number.isInteger(requested)?{i:requested,r:route(t,requested)}:dueSkills(s,b,t,now)[0];
   let routeIndex,questionIndex;
   if(due){routeIndex=due.i;questionIndex=[due.i,due.r.simpleIndex,due.r.applicationIndex].filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>count(s,t.id,a)-count(s,t.id,b)||a-b)[0];}
   else{questionIndex=FIRST.find(i=>!used.has(i))??[...FIRST].sort((a,b)=>count(s,t.id,a)-count(s,t.id,b))[0];routeIndex=questionIndex;}
@@ -74,6 +101,7 @@
   if(r)Object.assign(a,{routingVersion:ROUTING_VERSION,routeIndex,initialSkill:r.skill,checkSkill:r.skill});
   s.sessions.push(a);s.activeId=id;return a;
  }
+ function startSkill(s,b,now=Date.now(),concept=null,skill=null){return start(s,b,now,concept,null,typeof skill==='string'?skill:null);}
  function help(s,now=Date.now()){const a=active(s);if(!a||a.completedAt)return;if(!a.answeredAt){a.assisted=true;a.helpedAt=a.helpedAt||now;a.delayedProbe=false;}a.taughtAt=now;a.stage='lesson';}
  function submit(s,b,now=Date.now()){
   const a=active(s);if(!a||a.stage!=='question'||a.answeredAt)return false;
@@ -97,5 +125,5 @@
  }
  function lesson(b,a){const t=topic(b,a);return a.routingVersion===ROUTING_VERSION?route(t,a.routeIndex)||t:t;}
  function more(s,b,now=Date.now()){const a=active(s);if(a?.stage!=='done')return a;if(a)a.moreChosen=true;s.activeId=null;return start(s,b,now,null,a?.concept);}
- return {DAY,FIRST,ROUTING_VERSION,fresh,restore,active,topic,start,help,submit,beginCheck,check,more,candidate,seen,skillEvidence,lesson};
+ return {DAY,FIRST,ROUTING_VERSION,fresh,restore,active,topic,start,startSkill,recommendSkill,help,submit,beginCheck,check,more,candidate,seen,skillEvidence,lesson};
 });

@@ -40,7 +40,7 @@ function recordingFlow(){
  const storage=new Promise((resolve,reject)=>{resolveSave=resolve;rejectSave=reject;});
  const stream={getTracks:()=>[{stop(){stops++;}}]};
  class Capture{static isTypeSupported(){return true;}start(){this.state='recording';}stop(){this.state='inactive';this.pending=this.onstop();}}
- const context={state,E,Date,Blob,Error,CustomEvent,pendingRecovery:null,recordRequest:null,main:{querySelector:()=>null},view:'session',selectedResult:null,recordBusy:false,recorder:null,recordStream:null,pendingTimedSubmission:null,
+ const context={state,E,Date,Blob,Error,CustomEvent,pendingRecovery:null,recordRequest:null,syncProblem:'',main:{querySelector:()=>null},view:'session',selectedResult:null,recordBusy:false,recorder:null,recordStream:null,pendingTimedSubmission:null,
   navigator:{mediaDevices:{getUserMedia:async()=>stream}},MediaRecorder:Capture,window:{MediaRecorder:Capture},
   document:{dispatchEvent(){return true;},querySelector(selector){if(!buttons.has(selector))buttons.set(selector,{setAttribute(){this.disabled=true;},removeAttribute(){this.disabled=false;}});return buttons.get(selector);},getElementById(){return {}; }},
   current:()=>E.active(context.state),audioRecord:()=>storage,save:()=>saves++,message:t=>messages.push(t),showRecording(){},renderResult(){},go(page){context.view=page;},stopMedia(){},questions:()=>[],recoverRecording:(blob,id)=>recovered.push({blob,id})};
@@ -56,6 +56,14 @@ test('Speaking UI does not mark a recording saved before storage completes and s
 test('Timed speaking waits for a pending recording save before submitting',async()=>{
  const f=recordingFlow();await f.begin();f.context.submit(true);f.context.submit(true);assert.equal(f.context.current().completedAt,0);
  f.resolveSave();await f.context.recorder.pending;assert.ok(f.context.current().completedAt);assert.equal(f.context.current().timedOut,true);assert.equal(f.context.view,'result');
+});
+test('Rejected history sync defers pending timed submission while retaining the locally saved recording',async()=>{
+ const f=recordingFlow();await f.begin();const a=f.context.current();a.texts.speaking='Original spoken transcript';
+ f.context.submit(true);f.context.syncProblem='History needs checking';f.resolveSave();await f.context.recorder.pending;
+ assert.equal(a.completedAt,0);assert.equal(a.recorded,true);assert.equal(a.texts.speaking,'Original spoken transcript');
+ assert.equal(f.context.pendingTimedSubmission,a.id);
+ f.context.syncProblem='';f.context.submit(true);
+ assert.ok(a.completedAt);assert.equal(a.timedOut,true);assert.equal(f.context.state.sessions.length,1);
 });
 test('Failed recording save exposes the audio for recovery without fabricating saved progress',async()=>{
  const f=recordingFlow();await f.begin();const pending=f.stop();f.context.view='home';f.rejectSave(Error('quota'));await pending;

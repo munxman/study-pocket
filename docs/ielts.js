@@ -1,13 +1,28 @@
 'use strict';
 (async()=>{
 const E=window.IELTSEngine,C=window.IELTS_CONTENT,L=window.IELTS_LISTENING,storage=window.StudySync.storage,main=document.getElementById('english-main');
-let state;try{state=E.restore(JSON.parse(storage.getItem(E.KEY)));}catch{state=E.fresh();}
+function readState(value,allowEmpty=false){
+ const saved=typeof value==='string'?JSON.parse(value):value;
+ if(saved==null&&allowEmpty)return E.fresh();
+ const record=value=>value&&typeof value==='object'&&!Array.isArray(value);
+ const validSession=a=>record(a)&&typeof a.id==='string'&&typeof a.kind==='string'&&Array.isArray(a.taskIds)&&a.taskIds.every(id=>typeof id==='string')&&record(a.answers)&&record(a.texts)&&record(a.audioProgress)&&Object.values(a.texts).every(text=>typeof text==='string')&&Object.values(a.answers).every(answer=>typeof answer==='string')&&(!a.results||Array.isArray(a.results));
+ if(!saved||saved.version!==1||!Array.isArray(saved.sessions)||saved.sessions.some(a=>!validSession(a))||new Set(saved.sessions.map(a=>a.id)).size!==saved.sessions.length||saved.cards!=null&&!record(saved.cards)||saved.evaluations!=null&&!Array.isArray(saved.evaluations))throw Error('Unreadable saved work');
+ return E.restore(saved);
+}
+let state;try{state=readState(storage.getItem(E.KEY),true);}catch{main.innerHTML='<h1>Your earlier work is safe.</h1><p>This saved English history needs checking before we open another task.</p><a class="en-button" href="./progress.html">My work and backup</a>';return;}
 let view='home',selectedResult=null,player=null,recorder=null,recordStream=null,recordBusy=false,audioURL=null,toastTimer=null,pendingTimedSubmission=null,recordRequest=null,expiryTimer=null,audioViewGeneration=0,pendingRecovery=null;
+let guidedSessionId=null,syncProblem='';
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const date=t=>new Intl.DateTimeFormat('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/Tallinn'}).format(t);
 const button=(label,action,extra='',cls='')=>`<button class="en-button ${cls}" data-action="${action}" ${extra}>${label}</button>`;
-const save=()=>storage.setItem(E.KEY,JSON.stringify(state));
-function message(text){const n=document.getElementById('english-message');n.textContent=text;clearTimeout(toastTimer);toastTimer=setTimeout(()=>n.textContent='',6000);}
+const save=()=>{if(syncProblem){message(syncProblem);return false;}storage.setItem(E.KEY,JSON.stringify(state));return true;};
+function message(text){const n=document.getElementById('english-message');n.textContent=text;clearTimeout(toastTimer);if(!syncProblem)toastTimer=setTimeout(()=>n.textContent='',6000);}
+const stable=value=>value&&typeof value==='object'?(Array.isArray(value)?value.map(stable):Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])]))):value;
+function frozenWorkMatches(next){
+ const fields=['kind','taskIds','startedAt','completedAt','answers','answerTimes','texts','results','score','total','wordCount','confidence'];
+ return state.sessions.filter(a=>a.completedAt).every(a=>{const other=next.sessions.find(b=>b.id===a.id);return other&&fields.every(k=>a[k]===undefined||JSON.stringify(stable(a[k]))===JSON.stringify(stable(other[k])));});
+}
+function rejectSync(){syncProblem='The connected English history needs checking. Your current work is kept on this page; copy any new draft before leaving. Saving will resume when a valid history arrives.';message(syncProblem);}
 const allTasks=()=>[...C.reading,...L.short,...C.writing,...C.speaking,...C.drills,...(C.readingFull.passages||[]),...L.full.parts];
 const task=id=>allTasks().find(x=>x.id===id);
 const tasks=a=>a.taskIds.map(task).filter(Boolean);
@@ -19,6 +34,8 @@ function stopRecording(){if(recordRequest){recordRequest=null;recordBusy=false;d
 function stopMedia(){disposePlayer();stopRecording();}
 function route(){const next=location.hash.slice(1)||'home';if(view==='session'&&next!=='session'&&current()?.status==='active'&&!current()?.completedAt){E.pause(state);save();}stopMedia();view=next;if(view==='session'&&!current())view='home';render();main.scrollIntoView({block:'start'});}
 function go(page){if(location.hash==='#'+page){view=page;render();}else location.hash=page;}
+function guidedAddress(a,page='session'){guidedSessionId=a.id;history.replaceState(null,'','./ielts.html?guided=1&session='+encodeURIComponent(a.id)+'#'+page);}
+function clearGuidedAddress(){if(!guidedSessionId)return;guidedSessionId=null;history.replaceState(null,'','./ielts.html'+location.hash);}
 function heading(k,title,desc=''){return `<div class="en-top"><div><span class="small-label">${esc(k)}</span><h1>${esc(title)}</h1>${desc?`<p class="en-note">${esc(desc)}</p>`:''}</div></div>`;}
 function render(){
  clearAudioPreview();
@@ -48,7 +65,8 @@ function renderPractice(){
  <section class="en-card en-warm"><span class="small-label">2 MINUTES</span><h2>A useful word. A precise sentence.</h2><p>Academic vocabulary, grammar and paraphrase. Due questions return first; mistakes and uncertainty return sooner.</p>${button('Start two minutes','start','data-kind="drill"','main')}</section>
  <section class="en-card"><h2>Try the real format too.</h2><p>Our exercises follow IELTS formats but are original and uncalibrated. Official samples help you experience authentic wording and human voices.</p><a class="en-button" href="https://ielts.org/take-a-test/preparation-resources/sample-test-questions/academic-test" target="_blank" rel="noopener">Official IELTS sample tasks ↗</a></section></div>`;
 }
-function startFrom(b){
+function startFrom(b,fromGuide=false){
+ if(syncProblem){message(syncProblem);return;}
  stopMedia();const kind=b.dataset.kind,mode=b.dataset.mode||'short',part=Number(b.dataset.part||2);let chosen,minutes=mode==='full'?(kind==='reading'?60:kind==='listening'?30:kind==='speaking'?11:20):kind==='drill'?2:8;
  if(kind==='reading')chosen=mode==='full'?C.readingFull.passages:[b.dataset.id?task(b.dataset.id):E.choose(C.reading,state)];
  else if(kind==='listening')chosen=mode==='full'?L.full.parts:[b.dataset.id?task(b.dataset.id):E.choose(L.short,state)];
@@ -57,7 +75,28 @@ function startFrom(b){
  else chosen=[E.choose(C.speaking,state)];
  if(!chosen?.length||chosen.some(x=>!x)){message('This practice could not be opened. Please choose another.');return;}
  const title=mode==='full'?`${kind[0].toUpperCase()+kind.slice(1)} · timed ${kind==='speaking'?'rehearsal':'practice'}`:chosen[0].title||'Academic vocabulary & grammar';
- E.start(state,{kind,taskIds:chosen.map(x=>x.id),title,minutes,mode,part});save();go('session');
+ const a=E.start(state,{kind,taskIds:chosen.map(x=>x.id),title,minutes,mode,part});save();if(fromGuide){guidedAddress(a);view='session';render();}else{clearGuidedAddress();go('session');}
+}
+function openGuidedEntry(){
+ const params=new URLSearchParams(location.search),skill=params.get('skill'),id=params.get('session');
+ if(params.get('guided')!=='1'||!['','#session','#result'].includes(location.hash))return false;
+ const pools={reading:[...C.reading,...(C.readingFull.passages||[])],listening:[...L.short,...L.full.parts],writing:C.writing,speaking:C.speaking};
+ const valid=a=>a&&Object.hasOwn(pools,a.kind)&&Array.isArray(a.taskIds)&&a.taskIds.length&&a.taskIds.every(id=>pools[a.kind].some(t=>t.id===id))&&Number.isFinite(a.startedAt)&&a.startedAt>0&&a.startedAt<=Date.now()&&(!a.participant||['learner','hendrik'].includes(a.participant));
+ let a;
+ if(id){
+  const matches=state.sessions.filter(a=>a.id===id);a=matches.length===1?matches[0]:null;
+  if(!valid(a)||a.status==='empty'||a.closed){main.innerHTML='<h1>This task is not available here yet.</h1><p>Your saved work has not been changed. Continue in your existing browser or choose another English task.</p><a class="en-button" href="./ielts.html">English practice</a><a class="en-button" href="./index.html">My next study step</a>';return true;}
+  // Guided links only open gentle practice; never resume or expire a timed test automatically.
+  if(a.timed){main.innerHTML='<h1>Your timed practice is saved.</h1><p>Choose it deliberately from English practice when you want to continue. This short-practice link does not start or finish it.</p><a class="en-button" href="./ielts.html">English practice</a>';return true;}
+  if(a.completedAt){guidedAddress(a,'result');selectedResult=a.id;view='result';render();return true;}
+ }else{
+  if(!Object.hasOwn(pools,skill))return false;
+  const worked=a=>!!a.recorded||Object.values(a.texts||{}).some(text=>String(text).trim())||Object.values(a.answers||{}).some(answer=>String(answer).trim())||Object.values(a.audioProgress||{}).some(progress=>progress.started);
+  a=state.sessions.filter(a=>valid(a)&&state.sessions.filter(x=>x.id===a.id).length===1&&a.kind===skill&&!a.timed&&!a.closed&&!a.completedAt&&a.status!=='empty').sort((a,b)=>Number(worked(b))-Number(worked(a))||(b.updatedAt||b.startedAt)-(a.updatedAt||a.startedAt))[0];
+ }
+ if(a){const previous=current();if(previous&&previous.id!==a.id&&!previous.completedAt)E.pause(state);E.resume(state,a.id);save();guidedAddress(a);view='session';render();}
+ else startFrom({dataset:{kind:skill,mode:'short',taskkind:'task2',part:'2'}},true);
+ return true;
 }
 function questionHTML(q,a,n){
  const value=a.answers[q.id]||'',options=q.type==='tfng'?['True','False','Not Given']:q.type==='ynng'?['Yes','No','Not Given']:q.options;
@@ -91,7 +130,7 @@ function visualHTML(v){
  }
  return `<figure style="margin:16px 0"><figcaption>${esc(v.caption||'Task data')}</figcaption>${drawing}<div class="en-table-wrap"><table class="en-table"><thead><tr>${columns.map(c=>`<th scope="col">${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${(Array.isArray(r)?r:Object.values(r)).map((x,i)=>`<${i===0?'th scope="row"':'td'}>${esc(x)}</${i===0?'th':'td'}>`).join('')}</tr>`).join('')}</tbody></table></div></figure>`;
 }
-function renderWriting(a,ts){return `<div class="en-grid">${ts.map(t=>`<section class="en-card"><span class="en-pill">${t.kind==='task1'?'Task 1 · at least 150 words · about 20 minutes':'Task 2 · at least 250 words · about 40 minutes'}</span><h2>${esc(t.title)}</h2><p>${esc(t.prompt)}</p>${visualHTML(t.visual)}${a.mode!=='full'&&t.shortPractice?`<p class="en-alert"><strong>This short block:</strong> ${esc(t.shortPractice)}</p>`:''}${a.mode!=='full'?'<p class="en-alert">This short block is for planning and part of your answer. It will not establish a Writing band.</p>':''}<label for="text-${esc(t.id)}"><strong>Your own response</strong></label><textarea class="en-text" id="text-${esc(t.id)}" data-text="${esc(t.id)}" spellcheck="${a.timed?'false':'true'}" autocomplete="off" autocorrect="off" autocapitalize="off" maxlength="15000" placeholder="Write your own response here…">${esc(a.texts[t.id]||'')}</textarea><p class="en-note en-draft-count" data-wordcount="${esc(t.id)}">${E.words(a.texts[t.id])} words · draft saved as you type</p></section>`).join('')}</div><section class="en-card en-section"><p>The app does not write your answer or assign an automatic band. Submit your own work, then copy a review prompt for ChatGPT or a teacher. Use invented names rather than personal identifiers.</p><div class="en-actions">${button('Save my response & review','submit','','main')}</div></section>`;}
+function renderWriting(a,ts){return `<div class="en-grid">${ts.map(t=>`<section class="en-card"><span class="en-pill">${guidedSessionId===a.id&&a.mode!=='full'?'Short Writing · part of your own answer':t.kind==='task1'?'Task 1 · at least 150 words · about 20 minutes':'Task 2 · at least 250 words · about 40 minutes'}</span><h2>${esc(t.title)}</h2><p>${esc(t.prompt)}</p>${visualHTML(t.visual)}${a.mode!=='full'&&t.shortPractice?`<p class="en-alert"><strong>This short block:</strong> ${esc(t.shortPractice)}</p>`:''}${a.mode!=='full'?'<p class="en-alert">This short block is for planning and part of your answer. It will not establish a Writing band.</p>':''}<label for="text-${esc(t.id)}"><strong>Your own response</strong></label><textarea class="en-text" id="text-${esc(t.id)}" data-text="${esc(t.id)}" spellcheck="${a.timed?'false':'true'}" autocomplete="off" autocorrect="off" autocapitalize="off" maxlength="15000" placeholder="Write your own response here…">${esc(a.texts[t.id]||'')}</textarea><p class="en-note en-draft-count" data-wordcount="${esc(t.id)}">${E.words(a.texts[t.id])} words · draft saved as you type</p></section>`).join('')}</div><section class="en-card en-section"><p>The app does not write your answer or assign an automatic band. Submit your own work, then copy a review prompt for ChatGPT or a teacher. Use invented names rather than personal identifiers.</p><div class="en-actions">${button('Save my response & review','submit','','main')}</div></section>`;}
 function speakingPrompt(t,phase){if(phase==='part1')return `<h2>Part 1 · familiar topics</h2><ul>${t.part1.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`;if(phase==='part3')return `<h2>Part 3 · develop your ideas</h2><ul>${t.part3.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`;return `<h2>Part 2 · ${phase==='prep'?'prepare for one minute':'speak for up to two minutes'}</h2><p>${esc(t.part2.prompt)}</p><ul>${t.part2.bullets.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`;}
 function renderSpeaking(a,t){return `<div class="en-grid"><section class="en-card">${speakingPrompt(t,a.phase)}<p class="en-note" id="en-phase-time"></p>${a.phase==='prep'?button('Start speaking now','next-phase','','main'):a.mode==='full'&&a.phase!=='part3'?button('Next part','next-phase'):''}<p class="en-note">Speak naturally. Explain a reason or example; memorising a prepared script will not show what you can do spontaneously.</p></section><section class="en-card"><h2>Your speaking response</h2>
  <label for="speaking-text">Your words · dictate or type</label>
@@ -101,12 +140,12 @@ function renderSpeaking(a,t){return `<div class="en-grid"><section class="en-car
  <p class="en-note en-draft-count" data-wordcount="${t.id}">${E.words(a.texts[t.id])} words</p>
  <details data-recording-panel ${recordBusy?'open':''}><summary>Optional audio for pronunciation feedback</summary><p>Choose this only to keep a voice sample. This browser can hold up to 3 IELTS clips (10 MiB total). New clips expire after 7 days and are cleared when IELTS is open. You can download, share or delete your clip earlier. Dictating the transcript above stores only the text in Õpitasku.</p><div class="en-row">${button('<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false" style="vertical-align:middle"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4m-3 0h6"/></svg> Record &amp; keep for 7 days','record','','main')}${button('Stop & save recording','stop-record','disabled')}</div><p id="en-record-status" class="en-note" role="status">${a.recorded?'You recorded a response for this attempt. Local availability is shown below.':'The browser asks for microphone permission only when you start recording.'}</p><div id="en-record-preview"></div></details>
  <div class="en-actions">${button('Save my response & review','submit','','main')}</div></section></div>`;}
-function submit(timedOut=false){if(!timedOut&&main.querySelector('study-dictation')?.active){message('Stop dictation, check your words, then save your response.');return;}if(recordRequest){stopRecording();if(!timedOut){message('Microphone request cancelled. You can save the transcript.');return;}}if(recordBusy){if(timedOut)pendingTimedSubmission=current()?.id;stopRecording();message('Recording is saving. Keep this page open.');return;}stopMedia();const a=current();if(!a)return;
+function submit(timedOut=false){if(syncProblem){message(syncProblem);return;}if(!timedOut&&main.querySelector('study-dictation')?.active){message('Stop dictation, check your words, then save your response.');return;}if(recordRequest){stopRecording();if(!timedOut){message('Microphone request cancelled. You can save the transcript.');return;}}if(recordBusy){if(timedOut)pendingTimedSubmission=current()?.id;stopRecording();message('Recording is saving. Keep this page open.');return;}stopMedia();const a=current();if(!a)return;
  if(!timedOut&&!questions(a).length&&!Object.values(a.texts).some(t=>t.trim())&&!a.recorded){message('Write a response or save a recording first. You can also pause and return.');return;}
  if(!timedOut&&questions(a).length&&!Object.values(a.answers).some(t=>t.trim())){message('Try at least one answer before submitting. Blank answers elsewhere are fine.');return;}
  E.submit(state,questions(a),Date.now(),timedOut);save();selectedResult=a.id;go('result');}
 function renderResult(){const a=state.sessions.find(x=>x.id===(selectedResult||state.activeId));if(!a){go('progress');return;}
- const ts=tasks(a),qs=questions(a);main.innerHTML=heading(a.kind.toUpperCase(),a.completedAt?'One more step done.':'No answers submitted.',a.title)+`<section class="en-card en-warm">${a.total?`<div class="en-score">${a.score} / ${a.total}</div><p>Exact marks on this practice set · ${a.results.filter(r=>r.blank).length} blank · ${a.results.filter(r=>r.repeated).length} previously seen questions.</p><p class="en-note">This original set is not calibrated to IELTS bands. An immediate reattempt is practice, not independent evidence of improvement.</p>`:`<p>${a.completedAt?'Your response is saved. No automatic band has been assigned.':'An opened task alone does not count as a completed block.'}</p>`}${a.timedOut?'<p class="en-alert">The timer ended. Only work saved before the deadline is included.</p>':''}<div class="en-actions">${button('Keep going · choose a skill','navigate','data-page="practice"','main')}${button('Finish for now','navigate','data-page="home"')}${button('My progress','navigate','data-page="progress"')}</div></section>
+ const ts=tasks(a),qs=questions(a);main.innerHTML=heading(a.kind.toUpperCase(),a.completedAt?'One more step done.':'No answers submitted.',a.title)+`<section class="en-card en-warm">${a.total?`<div class="en-score">${a.score} / ${a.total}</div><p>Exact marks on this practice set · ${a.results.filter(r=>r.blank).length} blank · ${a.results.filter(r=>r.repeated).length} previously seen questions.</p><p class="en-note">This original set is not calibrated to IELTS bands. An immediate reattempt is practice, not independent evidence of improvement.</p>`:`<p>${a.completedAt?'Your response is saved. No automatic band has been assigned.':'An opened task alone does not count as a completed block.'}</p>`}${a.timedOut?'<p class="en-alert">The timer ended. Only work saved before the deadline is included.</p>':''}<div class="en-actions">${guidedSessionId===a.id&&a.completedAt?'<a class="en-button main" href="./index.html">My next study step</a><a class="en-button" href="./index.html">Finish for now</a><p class="en-note">Your response is saved. The optional review below helps you choose one improvement; it is not required to continue.</p>':button('Keep going · choose a skill','navigate','data-page="practice"','main')+button('Finish for now','navigate','data-page="home"')+button('My progress','navigate','data-page="progress"')}</div></section>
  ${qs.length?`<section class="en-card en-section en-answer-list"><h2>Find the evidence for each answer.</h2>${qs.map((q,i)=>{const r=a.results?.find(r=>r.id===q.id);return `<div class="${r?.correct?'en-correct':'en-wrong'}"><strong>${i+1}. ${esc(q.prompt)}</strong><p>Your answer: ${esc(a.answers[q.id]||'Blank')} · ${r?.correct?'Correct':'Review this'}</p><p>Answer: ${esc(Array.isArray(q.answer)?q.answer.join(' / '):q.answer)}</p><p>${esc(q.explanation)}</p></div>`;}).join('')}</section>`:''}
  ${a.kind==='reading'?`<section class="en-card en-section"><details><summary>Read the passage again</summary>${ts.map(p=>passageHTML(p)).join('')}</details></section>`:''}
  ${a.kind==='listening'?`<section class="en-card en-section"><details><summary>Study the transcript and replay after answering</summary>${ts.map(t=>`<h3>${esc(t.title)}</h3><audio controls crossorigin="anonymous" preload="none" src="./${esc(t.audio)}"></audio><p style="white-space:pre-wrap">${esc(t.transcript)}</p>`).join('')}</details><p class="en-note">Replay is for learning after submission. It does not change your first score.</p></section>`:''}
@@ -234,7 +273,7 @@ async function record(){
    }finally{
     recordBusy=false;stream.getTracks().forEach(t=>t.stop());if(recordStream===stream)recordStream=null;
     document.querySelector('[data-action="record"]')?.removeAttribute('disabled');document.querySelector('[data-action="stop-record"]')?.setAttribute('disabled','');
-    if(pendingTimedSubmission===recordingId){
+    if(pendingTimedSubmission===recordingId&&!syncProblem){
      pendingTimedSubmission=null;
      const activeId=state.activeId;
      state.activeId=recordingId;E.submit(state,[],Date.now(),true);if(activeId!==recordingId)state.activeId=activeId;save();
@@ -267,11 +306,12 @@ main.addEventListener('input',e=>{const a=current();if(!a||a.completedAt)return;
 });
 main.addEventListener('toggle',e=>{if(e.target.matches?.('[data-recording-panel]')&&!e.target.open&&recordBusy)stopRecording();},true);
 main.addEventListener('change',e=>{if(e.target.id==='en-confidence'){E.edit(state,'confidence',e.target.value);save();}});
-main.addEventListener('submit',e=>{if(e.target.id!=='en-feedback-form')return;e.preventDefault();const form=e.target,data=new FormData(form);try{E.addEvaluation(state,{sessionId:form.dataset.session,source:data.get('source'),band:data.get('band')||'',feedback:data.get('feedback')});save();renderResult();message('External feedback saved. It is labelled separately from marked answers.');}catch(error){document.getElementById('en-feedback-status').textContent=error.message;}});
+main.addEventListener('submit',e=>{if(e.target.id!=='en-feedback-form')return;e.preventDefault();if(syncProblem){message(syncProblem);return;}const form=e.target,data=new FormData(form);try{E.addEvaluation(state,{sessionId:form.dataset.session,source:data.get('source'),band:data.get('band')||'',feedback:data.get('feedback')});save();renderResult();message('External feedback saved. It is labelled separately from marked answers.');}catch(error){document.getElementById('en-feedback-status').textContent=error.message;}});
 main.addEventListener('click',async e=>{const b=e.target.closest('button[data-action]');if(!b)return;const action=b.dataset.action;
+ if(syncProblem&&['start','resume','part','submit','next-phase','record','play'].includes(action)){message(syncProblem);return;}
  if(action==='local-audio'){await showRecording(b.dataset.id,'en-managed-audio');return;}
  if(action==='delete-local-audio'){await deleteLocalAudio(b.dataset.id);return;}
- if(action==='navigate'){go(b.dataset.page);return;}if(action==='start'){startFrom(b);return;}if(action==='resume'){stopMedia();E.resume(state,b.dataset.id);save();go('session');return;}if(action==='result'){selectedResult=b.dataset.id;go('result');return;}
+ if(action==='navigate'){go(b.dataset.page);return;}if(action==='start'){startFrom(b);return;}if(action==='resume'){stopMedia();if(guidedSessionId!==b.dataset.id)clearGuidedAddress();E.resume(state,b.dataset.id);save();go('session');return;}if(action==='result'){if(guidedSessionId!==b.dataset.id)clearGuidedAddress();selectedResult=b.dataset.id;go('result');return;}
  if(action==='pause'){const a=current();if(a?.kind==='speaking')a.phaseRemaining=Math.max(0,a.phaseDeadline-Date.now());stopMedia();E.pause(state);save();go('home');return;}
  if(action==='part'){disposePlayer();E.edit(state,'index',Number(b.dataset.index));save();renderSession();return;}
  if(action==='submit'){if(recorder?.state==='recording'){stopRecording();message('Recording is saving. Press Save my response again in a moment.');return;}submit();return;}
@@ -279,7 +319,16 @@ main.addEventListener('click',async e=>{const b=e.target.closest('button[data-ac
  const a=state.sessions.find(x=>x.id===b.dataset.id);if(action==='copy-prompt'&&a)await copyPrompt(a);if(action==='download-prompt'&&a)download(E.feedbackPrompt(a,tasks(a)),`english-${a.kind}-review.txt`);
 });
 window.addEventListener('hashchange',route);window.addEventListener('pagehide',()=>{stopMedia();save();});
-window.StudySync.subscribe(E.KEY,data=>{const prior=current()?.id;state=E.restore(data);if(view==='session'&&document.activeElement?.matches('input,textarea,select'))return;if(prior&&current()?.completedAt){selectedResult=prior;view='result';}render();});
+window.addEventListener('beforeunload',e=>{if(syncProblem){e.preventDefault();e.returnValue='';}});
+window.StudySync.subscribe(E.KEY,data=>{
+ const prior=current()?.id;let next;
+ try{next=readState(data);if(!frozenWorkMatches(next)||guidedSessionId&&['session','result'].includes(view)&&!next.sessions.some(a=>a.id===guidedSessionId))throw Error('Incomplete or changed history');}catch{rejectSync();return;}
+ // Retain any text typed while saving was suspended, including a recovery copy
+ // if another device submitted the same attempt in the meantime.
+ if(syncProblem){next=E.merge(null,next,state);syncProblem='';message('Your English history is available again. Your work has been kept.');}
+ if(guidedSessionId&&['session','result'].includes(view)){const a=next.sessions.find(a=>a.id===guidedSessionId);state=next;if(a.completedAt){selectedResult=a.id;view='result';guidedAddress(a,'result');}else{state.activeId=a.id;if(document.activeElement?.matches('input,textarea,select'))return;}render();return;}
+ state=next;if(view==='session'&&document.activeElement?.matches('input,textarea,select'))return;if(prior&&current()?.completedAt){selectedResult=prior;view='result';}render();
+});
 localAudio.purgeExpired().catch(()=>{});
 setInterval(()=>{if(!document.hidden)localAudio.purgeExpired().catch(()=>{});},60000);
 document.addEventListener('visibilitychange',()=>{
@@ -288,5 +337,5 @@ document.addEventListener('visibilitychange',()=>{
   if(view==='progress')showLocalAudioList();
  }
 });
-setInterval(tick,1000);route();
+setInterval(tick,1000);if(!openGuidedEntry())route();
 })();
