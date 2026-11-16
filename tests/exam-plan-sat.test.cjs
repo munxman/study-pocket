@@ -45,11 +45,11 @@ test('confirmed College Board dates remain optional and do not promise a June UT
 });
 
 test('route offers a current sample and original skills while reserving unseen Bluebook assessments', () => {
-  assert.equal(C.sat.href, './videos.html?exam=SAT');
+  assert.equal(C.sat.href, './sat.html');
   assert.equal(C.sources.academicSample.url, 'https://ut.ee/sites/default/files/2023-02/Akadeemilise%20testi%20n%C3%A4idis%C3%BClesanded.pdf');
   assert.deepEqual(C.sat.format, {readingQuestions: 54, readingMinutes: 64, mathQuestions: 44, mathMinutes: 70, breakMinutes: 10, sourceId: 'satFormat'});
   const html = E.renderSat(C);
-  assert.match(html, /href="\.\/videos\.html\?exam=SAT"/);
+  assert.match(html, /href="\.\/sat\.html"/);
   assert.match(html, /seni tegemata ametlik Bluebooki täistest/);
   assert.match(html, /teine seni nägemata test/);
   assert.match(html, /väljaspool seda äppi/);

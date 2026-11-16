@@ -97,7 +97,8 @@ function documentFixture(page = 'geometry-sprint.html') {
 function harness({ clipboardMode = 'success', page = 'geometry-sprint.html' } = {}) {
   const document = documentFixture(page), forbiddenAccess = [], clipboard = [], globalListeners = new Map();
   const lessonEvents = [], lessonFields = [], lessonForms = [];
-  const lessonContainers = page === 'quant.html' ? [['quant-coach', null]] : [['diagnostic-questions', 'diagnostic-form'], ['guided-practice', null], ['mock-questions', null]];
+  const delegatedLesson = page === 'quant.html' || page === 'sat.html';
+  const lessonContainers = page === 'sat.html' ? [['sat-coach', null]] : page === 'quant.html' ? [['quant-coach', null]] : [['diagnostic-questions', 'diagnostic-form'], ['guided-practice', null], ['mock-questions', null]];
   for (const [containerId, formId] of lessonContainers) {
     const container = document.getElementById(containerId);
     assert.ok(container, 'existing lesson container: ' + containerId);
@@ -105,16 +106,16 @@ function harness({ clipboardMode = 'success', page = 'geometry-sprint.html' } = 
     if (!formId) container.append(form);
     lessonForms.push(form);
     form.addEventListener('submit', () => lessonEvents.push(containerId + ':submit'));
-    if (page === 'quant.html') {
+    if (delegatedLesson) {
       container.setAttribute('data-saved-stage', 'check');
-      // Quant delegates answer submission and changes to this container.
+      // Quant and SAT delegate answer submission and changes to this container.
       for (const type of ['submit', 'change']) container.addEventListener(type, () => lessonEvents.push(containerId + ':delegated-' + type));
     }
-    for (const [tag, name] of page === 'quant.html' ? [['input', 'choice'], ['input', 'confidence'], ['textarea', 'working']] : [['input', 'answer'], ['textarea', 'working']]) {
+    for (const [tag, name] of delegatedLesson ? [['input', 'choice'], ['input', 'confidence'], ['textarea', 'working']] : [['input', 'answer'], ['textarea', 'working']]) {
       const node = new Element(tag, document);
       node.value = name === 'confidence' ? 'sure' : containerId + (tag === 'input' ? ': saved answer 1620' : ': original method and unfinished draft');
       node.setAttribute('name', name);
-      if (page === 'quant.html' && tag === 'input') { node.setAttribute('type', 'radio'); node.checked = true; }
+      if (delegatedLesson && tag === 'input') { node.setAttribute('type', 'radio'); node.checked = true; }
       node.setAttribute('data-existing-lesson-field', tag);
       node.addEventListener('input', () => lessonEvents.push(containerId + ':input'));
       node.addEventListener('change', () => lessonEvents.push(containerId + ':change'));
@@ -133,7 +134,7 @@ function harness({ clipboardMode = 'success', page = 'geometry-sprint.html' } = 
     addEventListener(type, fn) { const list = globalListeners.get(type) || []; list.push(fn); globalListeners.set(type, list); }
   };
   context.window = context;
-  for (const name of ['localStorage', 'sessionStorage', 'indexedDB', 'fetch', 'XMLHttpRequest', 'WebSocket', 'BackupStore', 'StudySync', 'QuantEngine', 'QuantContent', 'ChemistryContent', 'GeometrySprintEngine', 'GeometrySprintContent', 'GeometrySprintTargets', 'GeometryReportAdapter', 'GeometryReportModel', 'setInterval', 'clearInterval']) {
+  for (const name of ['localStorage', 'sessionStorage', 'indexedDB', 'fetch', 'XMLHttpRequest', 'WebSocket', 'BackupStore', 'StudySync', 'QuantEngine', 'QuantContent', 'ChemistryContent', 'VideoEngine', 'VIDEO_CONTENT', 'SatPracticeModel', 'GeometrySprintEngine', 'GeometrySprintContent', 'GeometrySprintTargets', 'GeometryReportAdapter', 'GeometryReportModel', 'setInterval', 'clearInterval']) {
     Object.defineProperty(context, name, { get() { forbiddenAccess.push(name); throw Error('Unexpected calculator access: ' + name); } });
   }
   document.lookups = [];
@@ -156,7 +157,7 @@ function harness({ clipboardMode = 'success', page = 'geometry-sprint.html' } = 
     async select(start, end = start) { h.id('expression').setSelectionRange(start, end); await h.id('expression').emit('select'); },
     assertLessonUnchanged() {
       assert.deepEqual(fieldSnapshot(), savedLessonFields);
-      if (page === 'quant.html') assert.equal(document.body.querySelector('#quant-coach').getAttribute('data-saved-stage'), 'check');
+      if (delegatedLesson) assert.equal(document.body.querySelector(page === 'sat.html' ? '#sat-coach' : '#quant-coach').getAttribute('data-saved-stage'), 'check');
       assert.deepEqual(lessonEvents, []);
       assert.deepEqual(forbiddenAccess, []);
       assert.ok(document.lookups.every(id => id.startsWith('geometry-calc-')), 'calculator only looks up its own DOM controls');
@@ -357,6 +358,25 @@ test('Simulated DOM: quantitative calculator solves dilution and amount without 
   await h.open();
   assert.equal(h.id('result').value, '0,03');
   assert.equal(h.id('expression').value, '0,4×0,075');
+  h.assertLessonUnchanged();
+});
+
+test('Simulated DOM: SAT calculator computes arithmetic without submitting or changing the SAT choice and confidence', async () => {
+  const h = harness({ page: 'sat.html' }); await h.open();
+  await h.input('(2+3+3+4+28)/5');
+  const enter = await h.id('expression').emit('keydown', { key: 'Enter' });
+  assert.equal(enter.defaultPrevented, true);
+  assert.equal(h.id('result').value, '8');
+  await h.press('clear', '1', '2', '×', '9', '-', 'pi', '×', '3', '^2', 'equals');
+  assert.ok(Math.abs(Number(h.id('result').value.replace(',', '.')) - (108 - 9 * Math.PI)) < 1e-9);
+  for (const button of [h.id('toggle'), ...h.id('panel').querySelectorAll('button')]) {
+    assert.equal(button.getAttribute('type'), 'button', 'calculator buttons never submit the SAT form');
+  }
+  for (let node = h.id('form').parentNode; node; node = node.parentNode) {
+    assert.notEqual(node.id, 'sat-coach', 'calculator form stays outside SAT delegated submission');
+    assert.notEqual(node.tagName, 'FORM');
+  }
+  await h.id('close').click(); await h.open();
   h.assertLessonUnchanged();
 });
 

@@ -78,8 +78,8 @@
     sat: {
       title: 'SAT kui Tartu lisavõimalus',
       intro: 'SAT-i matemaatika ja ingliskeelne arutlemine toetavad ka teisi eksameid. Alusta ühest oskusest; suurema SAT-i plaani otsustame tegeliku proovitulemuse järgi.',
-      href: './videos.html?exam=SAT',
-      action: 'Valin lühikese SAT-i harjutuse',
+      href: './sat.html',
+      action: 'Alustan SAT-i lühiharjutust',
       steps: [
         'Proovi üht matemaatika või Reading and Writing oskust. Video on soovi korral abiks; pärast seda rakenda mõtet uues ülesandes.',
         'Vaata ka TÜ akadeemilise testi näidisülesandeid. Need aitavad võrrelda teistsugust arutlustesti, kuid ei anna ametlikku tulemust.',
