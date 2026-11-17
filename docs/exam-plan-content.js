@@ -16,7 +16,7 @@
       tartu: {title: 'TÜ: eestikeelne arstiteadus', year: '2026; 2027 info ootel', checkedAt: '2026-11-09', url: 'https://ut.ee/et/oppekavad/arstiteadus'},
       academic: {title: 'TÜ: akadeemiline test ja SAT', year: '2026; 2027 info ootel', checkedAt: '2026-11-09', url: 'https://ut.ee/et/akadeemiline-test'},
       school: {title: 'Riigi Teataja: 2026/2027 riigieksamid', year: '2026/2027', checkedAt: '2026-11-09', url: 'https://www.riigiteataja.ee/public-api/api/v1/akt/122052026003/blob-html'},
-      english: {title: 'Harno: inglise keele riigieksami asendamine', year: '2026/2027 · kehtiv üldkord', checkedAt: '2026-11-09', url: 'https://harno.ee/rahvusvahelised-keeleeksamid'},
+      english: {title: 'Harno: inglise keele riigieksami asendamine', year: '2026/2027 · kehtiv üldkord', checkedAt: '2026-11-18', url: 'https://harno.ee/rahvusvahelised-keeleeksamid'},
       bluebook: {title: 'College Board: ametlik Bluebooki proovitest', year: 'praegune digitaalse SAT-i harjutus', checkedAt: '2026-11-09', url: 'https://satsuite.collegeboard.org/practice/practice-tests/bluebook'},
       satFormat: {title: 'College Board: digitaalse SAT-i ülesehitus', year: 'kehtiv formaat', checkedAt: '2026-11-09', url: 'https://satsuite.collegeboard.org/sat/whats-on-the-test/structure'},
       satDates: {title: 'College Board: SAT-i kuupäevad ja tähtajad', year: '2026/2027', checkedAt: '2026-11-09', url: 'https://satsuite.collegeboard.org/sat/dates-deadlines'},
@@ -83,7 +83,7 @@
       steps: [
         'Proovi üht matemaatika või Reading and Writing oskust. Video on soovi korral abiks; pärast seda rakenda mõtet uues ülesandes.',
         'Vaata ka TÜ akadeemilise testi näidisülesandeid. Need aitavad võrrelda teistsugust arutlustesti, kuid ei anna ametlikku tulemust.',
-        'Kui lepime kokku pikema proovi, tee väljaspool seda äppi üks seni tegemata ametlik Bluebooki täistest. Hoia teine seni nägemata test hilisemaks võrdluseks.'
+        'Kui sul on rahulik aeg pikemaks prooviks, tee väljaspool seda äppi üks seni tegemata ametlik Bluebooki täistest. Hoia teine seni nägemata test hilisemaks võrdluseks.'
       ],
       practiceNote: 'Siinsed algupärased lühiharjutused ei anna SAT-i skaalapunkte ega ennusta sissepääsu. Video vaatamine ja kohe pärast selgitust õnnestumine ei tõenda hilisemat iseseisvat oskust.',
       format: {readingQuestions: 54, readingMinutes: 64, mathQuestions: 44, mathMinutes: 70, breakMinutes: 10, sourceId: 'satFormat'},

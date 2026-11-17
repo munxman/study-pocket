@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const M = require('../src/medical-plan.js');
+const O = require('../src/official-practice.js');
 const Q = require('../src/quant-engine.js');
 const C = require('../src/chemistry-content.js');
 const V = require('../src/video-engine.js');
@@ -39,7 +40,7 @@ function screen({modules = {}, prefs = {}, corrupt = false, medical = true} = {}
     BackupStore: {corrupt: () => broken, snapshot: () => ({modules})},
     BackupModel: {keys: [CK, IK, BK, PK, V.MODULE_ID]},
     StudySync: {subscribe(key, fn) { subscriptions[key] = fn; }, storage: {setItem() { throw Error('Home guidance must not write learner history.'); }}},
-    VIDEO_CONTENT: B, VideoLinks: L, QuantEngine: Q, ChemistryContent: C,
+    VIDEO_CONTENT: B, VideoLinks: L, QuantEngine: Q, ChemistryContent: C, OfficialPractice: O,
     addEventListener(name, fn) { events[name] = fn; }
   };
   if (medical) context.MedicalPlan = M;
@@ -155,4 +156,16 @@ test('older clients without MedicalPlan retain the existing safe recommendation 
   assert.equal(h.target.hidden, false); assert.match(h.primary().href, /subject=physics/);
   assert.equal(h.find('Valin teise sammu'), undefined);
   assert.deepEqual(h.modules, h.original); assert.equal(h.writes.length, 0);
+});
+
+
+test('one official invitation follows real production, Later hides the whole invitation without changing work', () => {
+ const state=modules();state[IK].sessions.push(productive('writing',NOW-1000));state[V.MODULE_ID]=satState();
+ const h=screen({modules:state}),before=structuredClone(state);
+ assert.ok(h.find('Ava ametlik IELTS-i harjutus'));
+ assert.equal(h.find('Vaata ametlikku SAT-i proovi'),undefined);
+ h.find('Tuleta hiljem meelde').click();
+ assert.equal(h.find('Ava ametlik IELTS-i harjutus'),undefined);
+ assert.equal(h.find('Vaata ametlikku SAT-i proovi'),undefined);
+ assert.deepEqual(state,before);assert.ok(h.primary());
 });

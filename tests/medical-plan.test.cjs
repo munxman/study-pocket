@@ -242,3 +242,55 @@ test('SAT Later and already-done self-report suppress only the invitation, not c
   }
   assert.ok(build(modules, {prefs: {satUntil: NOW - 1}}).sat);
 });
+
+test('home skips unavailable automatic chemistry without labelling it finished or creating learning evidence', () => {
+  const modules = readyCore();
+  modules[KEYS.ielts].sessions.push(ielts('writing', NOW - 1000));
+  const before = structuredClone(modules);
+  const result = build(modules, {chemistry: null, chemistryAvailable: false});
+  assert.equal(result.primary.subject, 'biology');
+  assert.doesNotMatch(result.primary.href, /subject=chemistry/);
+  assert.deepEqual(modules, before);
+  assert.equal(build(modules, {chemistry: null}).primary.subject, 'chemistry', 'the availability option defaults to the existing behavior');
+});
+
+test('a saved chemistry step or eligible exact skill remains reachable when generic chemistry is unavailable', () => {
+  const modules = readyCore();
+  modules[KEYS.ielts].sessions.push(ielts('writing', NOW - 1000));
+  assert.equal(build(modules, {chemistryAvailable: false}).primary.kind, 'chemistry-skill');
+  const draft = ordinary('chemistry', NOW - 500, {id: 'saved-chemistry-check', stage: 'check', completedAt: 0, checkAnsweredAt: 0, checkCorrect: null});
+  modules[KEYS.chemistry].sessions.push(draft);
+  const before = structuredClone(modules), result = build(modules, {chemistry: null, chemistryAvailable: false});
+  assert.equal(result.primary.subject, 'chemistry');
+  assert.equal(result.primary.kind, 'resume');
+  assert.equal(result.primary.sessionId, draft.id);
+  assert.deepEqual(modules, before);
+});
+
+test('a short IELTS recommendation resumes the exact untimed draft it names', () => {
+  const modules = readyCore(), state = modules[KEYS.ielts];
+  const draft = I.start(state, {kind: 'writing', taskIds: ['specific-draft'], title: 'Saved short response', mode: 'short'}, NOW - 2000);
+  draft.texts = {'specific-draft': 'My own response is still in progress.'};
+  I.pause(state, NOW - 1000);
+  const before = structuredClone(modules), result = build(modules), url = new URL(result.primary.href, 'https://example.test/');
+  assert.equal(result.primary.kind, 'resume');
+  assert.equal(url.searchParams.get('guided'), '1');
+  assert.equal(url.searchParams.get('skill'), 'writing');
+  assert.equal(url.searchParams.get('session'), draft.id);
+  assert.deepEqual(modules, before);
+});
+
+test('timed IELTS work remains a separate recovery link and is never replaced by a guided short sample', () => {
+  const modules = readyCore(), state = modules[KEYS.ielts];
+  const timed = I.start(state, {kind: 'writing', taskIds: ['timed-draft'], title: 'Saved timed response', minutes: 35, mode: 'full'}, NOW - 2000);
+  timed.texts = {'timed-draft': 'My own timed response must remain untouched.'};
+  const before = structuredClone(modules), result = build(modules), recovery = result.resumes.find(r => r.sessionId === timed.id);
+  assert.equal(result.primary.subject, 'ielts');
+  assert.equal(result.primary.kind, 'ielts-sample');
+  assert.equal(recovery.timed, true);
+  assert.equal(recovery.href, './ielts.html#progress');
+  assert.match(recovery.title, /ajaproovi/);
+  assert.doesNotMatch(recovery.href, /guided|session=/);
+  assert.deepEqual(modules, before);
+  assert.equal(timed.deadline, before[KEYS.ielts].sessions.find(a => a.id === timed.id).deadline);
+});

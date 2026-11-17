@@ -5,7 +5,7 @@ const SCRIPT=fs.readFileSync(require.resolve('../src/ielts.js'),'utf8');
 
 // Executes the actual IELTS UI handlers and engine with simulated DOM nodes.
 // It does not claim physical-device rendering, speech, microphone or browser QA.
-async function screen({search='',hash='',initial=null}={}){
+async function screen({search='',hash='',initial=null,medicalNext}={}){
  const rows=new Map(initial===null?[]:[[E.KEY,typeof initial==='string'?initial:JSON.stringify(initial)]]),writes=[],events={},subscribers={},nodes=new Map();
  let url=new URL('https://example.test/study-pocket/ielts.html'+search+hash);
  const node=id=>({id,innerHTML:'',textContent:'',events:{},focus(){},scrollIntoView(){},insertAdjacentHTML(){},querySelector(){return null;},querySelectorAll(){return [];},addEventListener(type,fn){this.events[type]=fn;}});
@@ -14,7 +14,7 @@ async function screen({search='',hash='',initial=null}={}){
  const location={get search(){return url.search;},get hash(){return url.hash;},set hash(value){url.hash=value;events.hashchange?.();}};
  class Clock extends Date{static now(){return NOW;}}
  const engine={...E,start:(s,args)=>E.start(s,args,NOW),resume:(s,id)=>E.resume(s,id,NOW),pause:s=>E.pause(s,NOW),submit:(s,q,now,timed)=>E.submit(s,q,now??NOW,timed),edit:(s,k,v)=>E.edit(s,k,v,NOW)};
- const context={IELTSEngine:engine,IELTS_CONTENT:C,IELTS_LISTENING:L,
+ const context={IELTSEngine:engine,IELTS_CONTENT:C,IELTS_LISTENING:L,MedicalNext:medicalNext,
   StudySync:{storage:store,subscribe(key,fn){subscribers[key]=fn;}},
   IELTSAudioStorage:{createRecordingStore(){return {purgeExpired:async()=>{},record:async()=>null,keys:async()=>[]};}},
   document:{hidden:false,activeElement:null,getElementById(id){if(!nodes.has(id))nodes.set(id,node(id));return nodes.get(id);},querySelectorAll(){return [];},querySelector(){return null;},addEventListener(){},dispatchEvent(){return true;}},
@@ -185,4 +185,74 @@ test('sync cannot rewrite a frozen submitted response but legitimate external fe
  h.sync(reviewed);
  assert.match(h.main.innerHTML,/Explain one example more precisely/);assert.doesNotMatch(h.main.innerHTML,/A different replacement answer/);
  h.windowEvent('pagehide');assert.equal(h.state().sessions[0].texts[id],'My original completed response');assert.equal(h.state().evaluations.length,1);
+});
+
+test('Writing self-review offers one task-matched improvement while preserving the submitted response',async()=>{
+ for(const kind of ['task1','task2']){
+  const state=E.fresh(),task=C.writing.find(t=>t.kind===kind),a=attempt(state,'writing',{taskIds:[task.id]});
+  a.texts[task.id]='An original synthetic response, kept exactly as submitted.';E.submit(state,[],NOW-1000);
+  const before=copy(state.sessions[0]);
+  const h=await screen({search:'?guided=1&session='+a.id,hash:'#result',initial:state});
+  assert.match(h.main.innerHTML,/data-self-review><summary>Try one small improvement · optional/);
+  assert.match(h.main.innerHTML,/Check the task/);
+  const review=h.main.innerHTML.split('data-self-review>')[1].split('</details>')[0];
+  if(kind==='task1'){
+   assert.match(review,/accurate figures, units, stages or locations/);
+   assert.match(review,/Do not invent a cause/);
+   assert.doesNotMatch(review,/support your claim|make your position clear/);
+  }else{
+   assert.match(review,/answer it and make your position clear/);
+   assert.match(review,/reason and a concrete example/);
+  }
+  assert.match(review,/aloud or on paper/);assert.match(review,/not graded and adds no result or band/);
+  assert.match(h.main.innerHTML,/Optional outside feedback/);
+  assert.match(h.main.innerHTML,new RegExp('data-taskkind="'+kind+'"'));
+  h.input(task.id,'A later edit must not replace the frozen response');
+  assert.deepEqual(h.state().sessions[0],before);assert.deepEqual(h.state().evaluations,[]);
+  assert.deepEqual(h.writes,[],'viewing self-review creates no response, evaluation or extra storage');
+ }
+});
+
+test('Speaking self-review works from typed words without requiring audio or asserting spoken performance',async()=>{
+ const h=await screen({search:'?guided=1&skill=speaking'}),a=h.active();
+ assert.doesNotMatch(h.main.innerHTML,/data-self-review/);
+ h.input(a.taskIds[0],'One synthetic point in my own words.');await h.click('submit');
+ const before=copy(h.state()),review=h.main.innerHTML.split('data-self-review>')[1].split('</details>')[0];
+ assert.match(review,/Check the cue/);assert.match(review,/Say it again with a reason and one specific example/);
+ assert.match(review,/Typed text cannot show pronunciation or spoken fluency/);
+ assert.match(h.main.innerHTML,/No recording is required to continue/);
+ assert.match(h.main.innerHTML,/Another short Speaking task/);
+ assert.equal(before.sessions[0].recorded,undefined);assert.deepEqual(before.evaluations,[]);
+ const reloaded=await screen({search:h.url().search,hash:h.url().hash,initial:before});
+ assert.deepEqual(reloaded.state().sessions,before.sessions);assert.deepEqual(reloaded.writes,[]);
+ assert.ok(h.writes.every(key=>key===E.KEY),'no raw note, audio or review telemetry store is introduced');
+});
+
+test('Writing can continue for ten voluntary short responses without completing self-review or requesting feedback',async()=>{
+ const h=await screen({search:'?guided=1&skill=writing'}),frozen=[];
+ for(let i=0;i<10;i++){
+  const a=h.active();assert.equal(a.kind,'writing');assert.equal(a.completedAt,0);
+  h.input(a.taskIds[0],'Synthetic learner-written response number '+i+'.');await h.click('submit');
+  frozen.push(copy(h.state().sessions.find(x=>x.id===a.id)));
+  assert.equal(h.state().sessions.length,i+1,'saving never starts the next task automatically');
+  assert.match(h.main.innerHTML,/Another short Writing task/);
+  assert.match(h.main.innerHTML,/Choose another IELTS skill/);
+  assert.match(h.main.innerHTML,/Finish for now/);
+  assert.deepEqual(h.state().evaluations,[]);
+  if(i<9)await h.click('start',{kind:'writing',taskkind:'task2'});
+ }
+ for(const a of frozen)assert.deepEqual(h.state().sessions.find(x=>x.id===a.id),a);
+ assert.equal(h.state().sessions.filter(a=>a.completedAt).length,10);
+});
+
+test('guided IELTS result links directly to the shared next recommendation using the just-submitted state',async()=>{
+ const calls=[],medicalNext={choose(storage,key,state,language){calls.push({key,state:copy(state),language});assert.equal(typeof storage.getItem,'function');return {href:'./quant.html?subject=chemistry&concept=concentration_dilution',label:'Continue · chemistry'};}};
+ const h=await screen({search:'?guided=1&skill=writing',medicalNext}),a=h.active();
+ assert.equal(calls.length,0);
+ h.input(a.taskIds[0],'My own synthetic paragraph.');await h.click('submit');
+ assert.equal(calls.length,1);assert.equal(calls[0].key,E.KEY);assert.equal(calls[0].language,'en');
+ assert.ok(calls[0].state.sessions[0].completedAt);
+ assert.match(h.main.innerHTML,/href="\.\/quant.html\?subject=chemistry&amp;concept=concentration_dilution">Continue · chemistry/);
+ assert.match(h.main.innerHTML,/Another short Writing task/);
+ assert.equal(h.state().sessions.length,1,'recommending chemistry does not create another subject attempt');
 });

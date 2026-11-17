@@ -15,7 +15,7 @@ test('every date has a source, applicable year and check date; only confirmed da
       assert.equal(d.date, null, d.id);
       assert.doesNotMatch(E.renderDate(C, d), /<time|datetime=|countdown/i);
     }
-    assert.match(E.renderDate(C, d), /kontrollitud 09\.11\.2026/);
+    assert.ok(E.renderDate(C, d).includes('kontrollitud '+C.sources[d.sourceId].checkedAt.split('-').reverse().join('.')));
   }
   assert.equal(C.dates.find(d => d.id === 'estonian-exam').date, '2027-04-12');
   assert.equal(C.dates.find(d => d.id === 'maths-exam').date, '2027-05-19');

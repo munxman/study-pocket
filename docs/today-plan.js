@@ -50,8 +50,8 @@ if(typeof window!=='undefined'&&window.document){(()=>{
   const due=bank&&window.VideoLinks?.recommendation(modules,bank,now);
   const help=window.TodayPlan.visibleHelp(bank&&window.VideoLinks?.suggestedHelp(modules,bank,now),prefs,now);
   const video=due||(help?{...help,kind:'video-help'}:null),fallback=window.TodayPlan.recommend(modules,bridge,now,video);
-  let chemistry=null;try{chemistry=window.QuantEngine?.recommendSkill(modules['hendrik-chemistry-v1'],window.ChemistryContent,now);}catch{}
-  const plan=window.MedicalPlan?.build(modules,now,{chemistry,prefs:planPrefs,fallback,bank}),r=plan?.primary||fallback;target.replaceChildren();
+  let chemistry=null,chemistryAvailable=true;try{const chem=window.QuantEngine.restore(modules['hendrik-chemistry-v1'],window.ChemistryContent);chemistry=window.QuantEngine.recommendSkill(chem,window.ChemistryContent,now);chemistryAvailable=!!window.QuantEngine.candidate(chem,window.ChemistryContent,now);}catch{}
+  const plan=window.MedicalPlan?.build(modules,now,{chemistry,chemistryAvailable,prefs:planPrefs,fallback,bank}),r=plan?.primary||fallback;target.replaceChildren();
   const label=element('p','JÄRGMINE SAMM MEDITSIINIÕPPE POOLE','backup-muted'),title=element('h2',r.title),reason=element('p',r.reason);
   const start=element('a',r.kind==='resume'?'Jätkan':r.kind==='video-help'?'Vaatan selle seose selgitust':'Proovin seda sammu','backup-primary');start.href=r.href;
   const note=element('p','Valik on sinu. Teised ained ja kahe minuti algus on allpool alati olemas.','backup-muted');
@@ -59,10 +59,14 @@ if(typeof window!=='undefined'&&window.document){(()=>{
   if(plan){
    const another=element('button','Valin teise sammu','backup-secondary');another.type='button';another.addEventListener('click',()=>{if(r.key==='choice'){document.getElementById('subject-choices')?.scrollIntoView({block:'start'});return;}planPrefs.deferred={...(planPrefs.deferred||{}),[r.key]:Date.now()+86400000,[r.subject]:Date.now()+86400000};savePlan();draw();target.querySelector('a')?.focus();});target.append(another);
    if(plan.resumes.length){const details=element('details'),summary=element('summary','Muu pooleli töö jääb alles');details.append(summary);for(const item of plan.resumes){const p=element('p'),a=element('a',item.title);a.href=item.href;p.append(a);details.append(p);}target.append(details);}
-   if(plan.sat){const box=element('aside',null,'today-sat-baseline'),title=element('h3',plan.sat.title),reason=element('p',plan.sat.reason),device=element('p',plan.sat.deviceNote,'backup-muted'),link=element('a','Vaata ametlikku SAT-i proovi','backup-secondary'),devices=element('a','Milline seade sobib?');link.href=plan.sat.href;link.target='_blank';link.rel='noopener noreferrer';devices.href=plan.sat.deviceHref;devices.target='_blank';devices.rel='noopener noreferrer';
-    const later=element('button','Tuleta hiljem meelde','backup-secondary');later.type='button';later.addEventListener('click',()=>{planPrefs.satUntil=Date.now()+7*86400000;savePlan();draw();});
-    const done=element('button','Olen proovi juba teinud','backup-secondary');done.type='button';done.addEventListener('click',()=>{planPrefs.satDoneAt=Date.now();savePlan();draw();});
-    box.append(title,reason,device,link,devices,later,done,element('p','Viimane nupp peidab meeldetuletuse selles brauseris; see ei salvesta testitulemust.','backup-muted'));target.append(box);
+   const official=window.OfficialPractice?.suggest(modules,now,{model:window.MedicalPlan,bank,prefs:planPrefs})||(!window.OfficialPractice&&plan.sat?{...plan.sat,id:'sat',action:'Vaata ametlikku SAT-i proovi',note:plan.sat.deviceNote}:null);
+   if(official){const box=element('aside',null,'today-sat-baseline'),title=element('h3',official.title),reason=element('p',official.reason),note=element('p',official.note,'backup-muted'),link=element('a',official.action,'backup-secondary');link.href=official.href;link.target='_blank';link.rel='noopener noreferrer';box.append(title,reason,note,link);
+    if(official.deviceHref){const devices=element('a','Milline seade sobib?');devices.href=official.deviceHref;devices.target='_blank';devices.rel='noopener noreferrer';box.append(devices);}
+    if(official.answersHref){const details=element('details'),summary=element('summary','Pärast lahendamist: vastused'),answers=element('a','Võrdlen TÜ vastustega');answers.href=official.answersHref;answers.target='_blank';answers.rel='noopener noreferrer';details.append(summary,answers);box.append(details);}
+    const remember=(done)=>{planPrefs.official={...(planPrefs.official||{}),[official.id]:done?{doneAt:Date.now()}:{until:Date.now()+7*86400000}};planPrefs.officialUntil=Date.now()+86400000;if(official.id==='sat'){if(done)planPrefs.satDoneAt=Date.now();else planPrefs.satUntil=Date.now()+7*86400000;}savePlan();draw();};
+    const later=element('button','Tuleta hiljem meelde','backup-secondary');later.type='button';later.addEventListener('click',()=>remember(false));
+    const done=element('button','Olen proovi juba teinud','backup-secondary');done.type='button';done.addEventListener('click',()=>remember(true));
+    box.append(later,done,element('p','Lingid vajavad internetti. Valikud peidavad kutse selles brauseris; linki avades ega siin kinnitades ei salvestata testitulemust. Kõik ametlikud harjutused jäävad eksamiplaani.','backup-muted'));target.append(box);
    }
   }
   // Guided quantitative pages provide help for the exact selected skill.

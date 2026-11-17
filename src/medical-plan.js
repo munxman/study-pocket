@@ -35,13 +35,16 @@
    if(a.closed||a.completedAt||a.stage==='done'||a.status==='empty'||!worked(a)||workTime(a)>now)continue;
    if([BIO,BASICS].includes(key)&&modules[key]?.activeId!==a.id)continue;
    if(key===IELTS&&!['writing','speaking','reading','listening'].includes(a.kind))continue;
-   let href=c.href;
-   if(key===IELTS)href+='&skill='+a.kind;
+   let href=c.href,title=c.title;
+   if(key===IELTS){
+    if(a.timed){href='./ielts.html#progress';title='Vaata salvestatud IELTS-i ajaproovi';}
+    else href+='&skill='+a.kind+'&session='+encodeURIComponent(a.id);
+   }
    else if(['chemistry','physics','maths'].includes(c.subject)){
     if(typeof a.concept!=='string'||!/^[a-z0-9_-]+$/.test(a.concept))continue;
     href+='&concept='+encodeURIComponent(a.concept);
    }
-   result.push({...c,key:'resume:'+key+':'+a.id,module:key,sessionId:a.id,concept:a.concept,skill:a.kind,kind:'resume',href,at:workTime(a),reason:'Sinu pooleli vastus on alles. Jätka sellest sammust; võid ka valida teise aine.'});
+   result.push({...c,title,key:'resume:'+key+':'+a.id,module:key,sessionId:a.id,concept:a.concept,skill:a.kind,kind:'resume',timed:key===IELTS&&a.timed===true,href,at:workTime(a),reason:'Sinu pooleli vastus on alles. Jätka sellest sammust; võid ka valida teise aine.'});
   }
   return result.sort((a,b)=>b.at-a.at||a.key.localeCompare(b.key));
  }
@@ -58,7 +61,7 @@
   if(dates.size<3||items.maths.size<2||items.english.size<2)return null;
   return {kind:'sat-baseline',title:'Leia rahulik aeg ametlikuks SAT-i prooviks',href:'https://satsuite.collegeboard.org/practice/practice-tests/bluebook',deviceHref:'https://bluebook.collegeboard.org/students/prepare-your-device/approved-devices',reason:'Oled proovinud mõlema SAT-i osa ülesandeid mitmel päeval. Ametlik pikem proov aitab valida edasist harjutamist; see soovitus ei tähenda eksamivalmidust. Vali varem lahendamata ja läbi vaatamata test.',deviceNote:'Planeeri pikem katkestusteta aeg toetatud arvutis või sobivas iPadis. iPhone’is saad jätkata Õpitasku lühiharjutustega.'};
  }
- function build(modules={},now=Date.now(),{chemistry=null,prefs={},fallback=null,bank=null}={}){
+ function build(modules={},now=Date.now(),{chemistry=null,chemistryAvailable=true,prefs={},fallback=null,bank=null}={}){
   if(!stamp(now))return {primary:null,resumes:[],sat:null};
   const today=day(now),resumes=resumeChoices(modules,now),english=rows(modules[IELTS],now).filter(a=>completed(a,true)),chem=rows(modules[CHEM],now).filter(a=>completed(a)),bio=[...rows(modules[BIO],now),...rows(modules[BASICS],now)].filter(a=>completed(a));
   const production=english.filter(productive),productionToday=production.some(a=>day(a.completedAt)===today),missingProduction=['writing','speaking'].some(k=>!last(production,k));
@@ -69,9 +72,9 @@
    {subject:'ielts',kind:'ielts-sample',key:'ielts:'+englishKind,title:englishKind==='writing'?'Üks oma vastus · IELTS Writing':englishKind==='speaking'?'Üks mõte oma sõnadega · IELTS Speaking':englishKind==='reading'?'Leian tekstist tõendi · IELTS Reading':'Kuulan ja kontrollin · IELTS Listening',href:'./ielts.html?guided=1&skill='+englishKind,skill:englishKind,last:last(english),reason:urgentEnglish?'Võtame ühe väikese kirjutamis- või rääkimisnäite. See hoiab sinu IELTS-i eesmärgi plaanis; vastuse kirjutad või ütled ise.':'Järgmine IELTS-i oskus valitakse sinu salvestatud töö järgi. See on lühike harjutus, mitte tasemehinnang.'},
    {subject:'chemistry',kind:chemistry?.eligible?'chemistry-skill':'chemistry-practice',key:chemistry?.eligible?'chemistry:'+chemistry.concept+':'+chemistry.skill:'chemistry',title:chemistry?.eligible?'Proovin keerulisemat keemiaseost uuesti':'Üks keemia alusmõte',href:'./quant.html?subject=chemistry&from=plan'+(chemistry?.eligible?'&concept='+encodeURIComponent(chemistry.concept)+'&skill='+encodeURIComponent(chemistry.skill):'&next=1'),module:CHEM,concept:chemistry?.concept,skill:chemistry?.skill,last:last(chem),reason:chemistry?.eligible?'Varasem vastus või kontroll jäi selles oskuses valeks või ebakindlaks. Proovi teist ülesannet; selgituse ja kalkulaatori saad vajadusel avada.':'Keemia alused toetavad nii IMAT-i kui ka Tartu ettevalmistust. Alusta ühest küsimusest ja peatu, kui soovid.'},
    {subject:'biology',kind:'biology-practice',key:'biology',title:'Jätkan bioloogia seoste harjutamist',href:'./imat.html?guided=8',last:last(bio),reason:'Bioloogia jääb Itaalia meditsiiniõppe ettevalmistuses kesksele kohale. Meenuta, proovi uut rakendust ja jätka soovi korral.'}
-  ];
+  ].filter(c=>c.subject!=='chemistry'||chemistryAvailable!==false||chemistry?.eligible||resumes.some(r=>r.subject==='chemistry'));
   for(let i=0;i<candidates.length;i++){
-   const c=candidates[i],resume=resumes.find(r=>r.subject===c.subject&&(c.subject!=='ielts'||r.skill===englishKind));
+   const c=candidates[i],resume=resumes.find(r=>r.subject===c.subject&&(c.subject!=='ielts'||!r.timed&&r.skill===englishKind));
    if(resume)candidates[i]={...c,...resume,last:c.last};
   }
   const available=candidates.filter(c=>!deferred(prefs,c.key,now)&&!deferred(prefs,c.subject,now));

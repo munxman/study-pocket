@@ -5,7 +5,7 @@
   if (root) {
     root.ExamPlan = api;
     var target = root.document && root.document.getElementById('exam-plan');
-    if (target && root.ExamPlanContent) target.innerHTML = api.render(root.ExamPlanContent);
+    if (target && root.ExamPlanContent) target.innerHTML = api.render(root.ExamPlanContent,root.OfficialPractice?.resources);
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
@@ -38,7 +38,11 @@
       '<table><caption>Valitud näited TÜ 2026. aasta SAT-i teisendustabelist</caption><thead><tr><th scope="col">SAT-i tulemus</th><th scope="col">Akadeemilise testi punktid</th></tr></thead><tbody>' + conversions + '</tbody></table><p>Need on ametliku tabeli näited, mitte selle äpi lühiharjutuste teisendus ega vastuvõtugarantii.</p>' + source(content, rules.sourceId) + source(content, 'tartu') + '</details>' +
       '<details><summary>Võimalikud SAT-i päevad, mitte broneeringud</summary><ul>' + dates + '</ul><p>' + escape(sat.datesNote) + '</p><p>' + escape(sat.bookingNote) + '</p>' + source(content, 'satDates') + '</details></section>';
   }
-  function render(content) {
+  function renderOfficial(resources=[]) {
+    if(!resources.length)return '';
+    return '<section class="backup-card" id="official-practice"><h2>Ametlikud harjutused · üks korraga</h2><p>Alusta sobival rahulikul hetkel. Need lingid on alati avatud; soovituse ootamine ega kindel tulemus ei ole eeltingimus.</p>'+resources.map(function(r){return '<details><summary>'+escape(r.title)+'</summary><p>'+escape(r.reason)+'</p><p>'+escape(r.note)+'</p><a class="backup-secondary" href="'+safeHref(r.href)+'" target="_blank" rel="noopener noreferrer">'+escape(r.action)+'</a>'+(r.answersHref?'<details><summary>Pärast lahendamist: vastused</summary><a href="'+safeHref(r.answersHref)+'" target="_blank" rel="noopener noreferrer">TÜ vastused</a></details>':'')+(r.deviceHref?'<p><a href="'+safeHref(r.deviceHref)+'" target="_blank" rel="noopener noreferrer">Bluebooki sobivad seadmed</a></p>':'')+'</details>';}).join('')+'<p>Välislingid vajavad internetti. Avamine ei salvesta tulemust ega tähenda, et proov on tehtud. IELTS-i kirjutamine ja rääkimine vajavad eraldi tagasisidet.</p></section>';
+  }
+  function render(content,resources=[]) {
     var italy = content.italy, tartu = content.tartu;
     var weights = tartu.components.map(function (c) { return '<tr><th scope="row">' + escape(c.title) + '</th><td>' + escape(c.weight) + '%</td></tr>'; }).join('');
     var fields = italy.sections.map(function (s) { return escape(s.name) + ' ' + escape(s.questions); }).join(' · ');
@@ -49,7 +53,7 @@
       '<section class="backup-card"><h2>' + escape(tartu.title) + '</h2><p>Keemia ja füüsika väärivad tähelepanu juba praegu. Eesti keel ning arutlus- ja suhtlemisoskus on eraldi olulised.</p><details><summary>Millest Tartu tulemus koosneb?</summary>' + badge(tartu.status) + '<table><caption>Tartu arstiteaduse 2026. aasta konkursipunktide osakaalud</caption><thead><tr><th scope="col">Tulemus</th><th scope="col">Osakaal</th></tr></thead><tbody>' + weights + '</tbody></table><p>' + escape(tartu.note) + '</p>' + source(content, tartu.sourceId) + '</details></section>' +
       '<section class="backup-card"><h2>Lähimad tähtajad</h2><ul class="exam-plan-dates">' + content.dates.filter(function (d) { return d.kind !== 'information' && d.status !== 'awaiting'; }).map(function (d) { return renderDate(content, d); }).join('') + '</ul><details><summary>Millist 2027. aasta infot veel ootame?</summary><ul class="exam-plan-dates">' + content.dates.filter(function (d) { return d.kind === 'information' || d.status === 'awaiting'; }).map(function (d) { return renderDate(content, d); }).join('') + '</ul></details></section>' +
       '<section class="backup-card"><h2>Mida selles õppepakis harjutada saab?</h2><p>See on alusteadmiste ja valitud seoste õpe, mitte kogu eksamite ainekava. Teemade arv ei näita sinu läbimist ega oskust.</p><details><summary>Vaata aineid ja järgmisi lünki</summary><ul class="exam-plan-coverage">' + content.coverage.map(function (c) { return '<li><h3><a href="' + safeHref(c.href) + '">' + escape(c.title) + '</a> · ' + escape(c.topics) + ' teemat</h3><p>' + escape(c.scope) + '</p><p class="backup-muted">' + escape(c.gap) + '</p></li>'; }).join('') + '</ul><p>' + escape(content.later) + '</p></details></section>' +
-      renderSat(content) + '<p class="backup-muted">Plaani allikad kontrollitud ' + checked(content.checkedAt) + '. Välislingid vajavad internetti.</p><a class="backup-secondary" href="./index.html">Valin järgmise sammu</a>';
+      renderOfficial(resources) + renderSat(content) + '<p class="backup-muted">Plaani allikad kontrollitud ' + checked(content.checkedAt) + '. Välislingid vajavad internetti.</p><a class="backup-secondary" href="./index.html">Valin järgmise sammu</a>';
   }
-  return {escape: escape, safeHref: safeHref, renderDate: renderDate, renderSat: renderSat, render: render};
+  return {escape: escape, safeHref: safeHref, renderDate: renderDate, renderSat: renderSat, renderOfficial: renderOfficial, render: render};
 });
