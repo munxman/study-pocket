@@ -133,23 +133,40 @@ test('SAT requires answer and confidence, freezes submission, and never grants o
   assert.equal(reloaded.state().sessions.length, 1);
 });
 
-test('SAT suggests the other section only after an explicit click and stops its suggested visit after two answers', () => {
-  const h = screen(); answer(h);
-  assert.equal(h.state().sessions.length, 1);
-  assert.match(h.main.innerHTML, /data-action="next"/);
-  h.click('data-action', 'next');
-  assert.equal(M.getSection(h.active().videoId), 'english');
-  assert.equal(h.state().sessions.length, 2);
-  assert.match(h.search(), /step=2/);
-  assert.equal(h.active().assisted, false);
-  answer(h);
-  assert.equal(h.state().sessions.length, 2);
-  assert.match(h.main.innerHTML, /Kaks õppesammu on tehtud/);
-  assert.doesNotMatch(h.main.innerHTML, /data-action="next"/);
-  assert.match(h.main.innerHTML, /Bioloogia, keemia ja IELTS/);
-  const reloaded = screen({search: h.search(), initial: Object.fromEntries(h.rows)});
-  assert.equal(reloaded.state().sessions.length, 2);
-  assert.match(reloaded.main.innerHTML, /Kaks õppesammu on tehtud/);
+test('SAT offers voluntary one-click continuation beyond two steps and preserves reserved later questions', () => {
+  let h = screen();
+  const frozen = [];
+  for (let i = 0; i < 10; i++) {
+    assert.equal(M.getSection(h.active().videoId), i % 2 === 0 ? 'maths' : 'english');
+    assert.equal(h.state().sessions.length, i + 1);
+    assert.equal(h.active().assisted, false);
+    assert.equal(h.active().questionIndex, 0, 'the later question is not consumed by same-visit continuation');
+    assert.equal(h.active().repeatedQuestion, i >= 8);
+    if (i >= 8) assert.match(h.main.innerHTML, /varem vastatud küsimuse kordus/);
+    answer(h, {correct: i % 3 !== 0});
+    const a = h.active();
+    assert.equal(a.delayedProbe, false);
+    frozen.push({id: a.id, selected: a.selected, answeredAt: a.answeredAt, correct: a.correct});
+    assert.match(h.main.innerHTML, /data-action="next"/);
+    assert.match(h.main.innerHTML, /data-section="maths"/);
+    assert.match(h.main.innerHTML, /data-section="english"/);
+    assert.match(h.main.innerHTML, /Peatun praegu/);
+    assert.doesNotMatch(h.main.innerHTML, /Praeguseks piisab|Kaks õppesammu|samm \d+\/2/);
+    assert.equal(h.state().sessions.length, i + 1, 'showing a result never autostarts another attempt');
+    if (i === 1 || i === 9) {
+      const oldId = h.active().id;
+      h = screen({search: h.search(), initial: Object.fromEntries(h.rows)});
+      assert.equal(h.active().id, oldId, 'step=2 and later bookmarks reload the exact completed result');
+      assert.equal(new URLSearchParams(h.search()).get('step'), String(i + 1));
+      assert.equal(h.state().sessions.length, i + 1);
+      assert.match(h.main.innerHTML, /data-action="next"/);
+    }
+    if (i < 9) h.click('data-action', 'next');
+  }
+  for (const old of frozen) {
+    const a = h.state().sessions.find(a => a.id === old.id);
+    assert.deepEqual({id: a.id, selected: a.selected, answeredAt: a.answeredAt, correct: a.correct}, old);
+  }
 });
 
 test('optional SAT help marks support before the answer while later help cannot rewrite an independent answer', () => {
@@ -183,10 +200,47 @@ test('SAT offers familiar same-day repetition explicitly instead of silently con
   const h = screen({search: '?section=maths', initial: {[E.MODULE_ID]: state}});
   assert.equal(h.state().sessions.length, 4); assert.equal(h.writes.length, 0);
   assert.match(h.main.innerHTML, /data-action="repeat"/);
+  assert.doesNotMatch(h.main.innerHTML, /järgmiseks päevaks|oota homseni/);
   h.click('data-action', 'repeat');
   assert.equal(h.state().sessions.length, 5);
   assert.equal(h.active().questionIndex, 0); assert.equal(h.active().repeatedQuestion, true);
   assert.equal(h.active().delayedEligibleAtStart, false);
+});
+
+test('explicit SAT section choice can start familiar practice immediately after a result', () => {
+  const state = E.fresh();
+  for (const id of M.sections.maths) completed(state, id, NOW - 1000);
+  const english = completed(state, M.sections.english[0], NOW - 500);
+  const h = screen({search: '?session=' + english.id + '&step=2', initial: {[E.MODULE_ID]: state}});
+  h.click('data-section', 'maths');
+  assert.equal(h.state().sessions.length, 6);
+  assert.equal(h.active().repeatedQuestion, true);
+  assert.equal(h.active().questionIndex, 0);
+  assert.equal(h.active().answeredAt, 0);
+  assert.match(h.main.innerHTML, /id="sat-answer"/);
+  assert.doesNotMatch(h.main.innerHTML, /data-action="repeat"/);
+});
+
+test('SAT continuation safely falls back when the other section has future records without rewriting them', () => {
+  const state = E.fresh();
+  const future = M.sections.english.map((id, i) => completed(state, id, NOW + 1000 + i));
+  const a = completed(state, M.sections.maths[0], NOW - 500);
+  const h = screen({search: '?session=' + a.id + '&step=2', initial: {[E.MODULE_ID]: state}});
+  h.click('data-action', 'next');
+  assert.equal(M.getSection(h.active().videoId), 'maths');
+  assert.equal(h.active().videoId, M.sections.maths[1]);
+  for (const original of future) assert.deepEqual(h.state().sessions.find(x => x.id === original.id), original);
+});
+
+test('unavailable SAT records show the actual recovery issue without overwriting history or claiming study is enough', () => {
+  const state = E.fresh();
+  for (const id of [...M.sections.maths, ...M.sections.english]) completed(state, id, NOW + 1000);
+  const before = JSON.stringify(state), h = screen({initial: {[E.MODULE_ID]: before}});
+  assert.equal(h.rows.get(E.MODULE_ID), before);
+  assert.deepEqual(h.writes, []);
+  assert.match(h.main.innerHTML, /salvestus või küsimused vajavad kontrollimist/);
+  assert.match(h.main.innerHTML, /Minu töö ja varukoopia/);
+  assert.doesNotMatch(h.main.innerHTML, /Praeguseks piisab|järgmiseks päevaks/);
 });
 
 test('SAT switching sections preserves the unfinished selection and shows the calculator only for Maths', () => {

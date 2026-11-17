@@ -121,6 +121,18 @@ test('future unfinished state is not disguised as a fresh baseline which would r
   assert.equal(pick(state, T).videoId, math[1]);
 });
 
+test('automatic navigation falls back to the safe section when its preferred section is unavailable', () => {
+  const state = E.fresh();
+  math.forEach(id => answer(state, id, T + E.DAY));
+  const before = structuredClone(state);
+  assert.equal(M.choose(state, B, T).section, 'english');
+  assert.equal(M.choose(state, B, T).reason, 'unseen');
+  assert.equal(pick(state, T, 'maths'), null, 'an explicit section never silently changes the requested subject');
+  assert.deepEqual(state, before, 'unavailable records remain untouched');
+  english.forEach(id => answer(state, id, T + E.DAY));
+  assert.equal(M.choose(state, B, T), null, 'no safe candidate is not fabricated as a new baseline');
+});
+
 test('invalid and future completed records without cards cannot be offered as unseen work', () => {
   const state = E.fresh();
   answer(state, math[0], T + E.DAY, {correct: false});

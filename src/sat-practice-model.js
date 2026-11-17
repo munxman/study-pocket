@@ -17,8 +17,8 @@
   // Read-only navigation over the existing video-practice module. The caller
   // restores that module with VideoEngine, then explicitly starts/resumes the
   // returned item. No plan, answer, exposure, due date or completion is written.
-  // `repeat` requests consent to same-day repetition; resuming a saved attempt
-  // does not require another repetition choice. Reasons are stable UI keys.
+  // `repeat` labels familiar practice. An explicit continuation may start it
+  // immediately; it must not consume the question reserved for a later visit.
   function choose(state, bank, now = Date.now(), {section, excludeVideoIds = []} = {}) {
     if (!E || !time(now) || !Array.isArray(bank?.videos) ||
         section !== undefined && section !== 'auto' && !Object.hasOwn(sections, section)) return null;
@@ -72,7 +72,10 @@
       Number(b.pending.id === state?.activeId) - Number(a.pending.id === state?.activeId) ||
       a.pending.startedAt - b.pending.startedAt || a.order - b.order);
     if (pending.length) return result(pending[0], 'resume');
-    const inSection = candidates.filter(x => getSection(x.videoId) === section);
+    // Alternation is a preference, not a gate. If one section has no safely
+    // usable record, automatic navigation can still offer the other section.
+    let inSection = candidates.filter(x => getSection(x.videoId) === section);
+    if (auto && !inSection.length) inSection = candidates.filter(x => getSection(x.videoId) !== section);
     const dueOrder = (a, b) => a.dueAt - b.dueAt || a.order - b.order;
     const weak = inSection.filter(x => x.due && x.unresolved).sort(dueOrder);
     if (weak.length) return result(weak[0], 'weak-due');
