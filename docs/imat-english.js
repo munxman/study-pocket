@@ -91,6 +91,7 @@
    })));
    c.probeQuestions.push(base);c.supportQuestions.push(base+1);c.transferQuestions.push(base+2);
   }
+ if(typeof bank.installChallenges==='function')bank.installChallenges(bank);
  return bank;};
  if(root.IMAT_CONTENT)apply(root.IMAT_CONTENT);if(typeof module==='object'&&module.exports)module.exports=apply;
 })(typeof window!=='undefined'?window:globalThis);

@@ -47,6 +47,57 @@
  }
  const retryQuestion=(bank,a)=>bank.concepts.find(c=>c.id===a.concept).questions[a.retryIndex??2];
  function leastRecent(s,c,pool,exclude=null){const used=new Map();for(const a of s.sessions.filter(a=>a.concept===c.id)){if(a.answeredAt)used.set(a.questionIndex??(a.level==='application'?1:0),Math.max(used.get(a.questionIndex??(a.level==='application'?1:0))||0,a.answeredAt));if(a.completedAt)used.set(a.retryIndex??2,Math.max(used.get(a.retryIndex??2)||0,a.completedAt));}return pool.filter(i=>i!==exclude).sort((a,b)=>(used.get(a)||0)-(used.get(b)||0))[0];}
+ // A successful familiar item only earns a diagnostic challenge. This replay
+ // uses explicit item references; old inferred indices and topic totals cannot
+ // establish a skill. Checks after teaching never count as independent success.
+ const challengeRoute=(c,index)=>c.challengeRoutes?.find(r=>r.challengeIndices.includes(index))||null;
+ function challengeChoice(s,c,now=Date.now()){
+   const card=s.cards[c.id];
+   if(!c.challengeRoutes?.length||!Number.isFinite(now)||!card||!Number.isFinite(card.due)||card.due>now||!Number.isFinite(card.lastExposure)||card.lastExposure<=0||now-card.lastExposure<DAY)return null;
+   const events=[],unresolvedChecks=[],ids=new Set();
+   for(const a of s.sessions.filter(a=>a.concept===c.id)){
+     if(ids.has(a.id))continue;ids.add(a.id);
+     if(a.participant&& !['hendrik','learner'].includes(a.participant))continue;
+     if(!Number.isFinite(a.startedAt)||a.startedAt<=0||a.startedAt>now)return null;
+     for(const at of [a.answeredAt,a.completedAt])if(at&&(!Number.isFinite(at)||at<a.startedAt||at>now))return null;
+     if(a.answeredAt){
+       const index=Number.isInteger(a.questionIndex)?a.questionIndex:null;
+       events.push({at:a.answeredAt,kind:'first',index,correct:a.correct,a});
+     }
+     // An escaped legacy retry has no completion time. Do not invent one or
+     // let the absent timestamp hide a wrong (or unidentifiable) saved check.
+     if(!a.completedAt){
+       const index=Number.isInteger(a.retryIndex)&&c.questions[a.retryIndex]?a.retryIndex:null;
+       if(a.checkCorrect===false||a.retryAnswers?.length&&(index===null||a.retryAnswers.at(-1)!==c.questions[index].answer))unresolvedChecks.push(index);
+     }
+     if(a.completedAt){
+       const index=Number.isInteger(a.retryIndex)?a.retryIndex:null;
+       const correct=typeof a.checkCorrect==='boolean'?a.checkCorrect:index!==null&&a.retryAnswers?.length?a.retryAnswers.at(-1)===c.questions[index]?.answer:null;
+       events.push({at:a.completedAt,kind:'check',index,correct,a});
+     }
+   }
+   events.sort((a,b)=>a.at-b.at||(a.kind==='first'?0:1)-(b.kind==='first'?0:1)||String(a.a.id).localeCompare(String(b.a.id)));
+   for(const r of c.challengeRoutes){
+     const indices=[...r.relatedIndices,...r.challengeIndices,r.supportIndex,r.applicationIndex];
+     if(unresolvedChecks.some(index=>index===null||indices.includes(index)))continue;
+     let exposure=0,confirmations=[],passed=new Set();
+     for(const e of events){
+       const related=e.index===null||indices.includes(e.index);
+       if(related&&(e.correct===false||e.kind==='first'&&e.a.confidence!=='sure')){confirmations=[];passed.clear();}
+       const independent=e.kind==='first'&&e.correct===true&&e.a.assisted===false&&e.a.confidence==='sure'&&e.a.delayedProbe===true&&exposure>0&&e.a.startedAt-exposure>=DAY&&e.at-exposure>=DAY;
+       if(independent){
+         if(r.baselineIndices.includes(e.index)&&(!confirmations.length||e.a.startedAt-confirmations.at(-1)>=DAY))confirmations.push(e.a.startedAt);
+         if(confirmations.length>=2&&r.challengeIndices.includes(e.index)){
+           // The second distinct challenge cannot promote itself without the first.
+           if(e.index===r.challengeIndices[0]||passed.has(r.challengeIndices[0]))passed.add(e.index);
+         }
+       }
+       exposure=Math.max(exposure,e.at);
+     }
+     if(confirmations.length>=2){const index=r.challengeIndices.find(i=>!passed.has(i));if(index!==undefined&&c.questions[index])return {skill:r.skill,index,route:r};}
+   }
+   return null;
+ }
  function recommend(s,bank,now=Date.now()){
    const last=[...s.sessions].filter(a=>a.completedAt).sort((a,b)=>b.completedAt-a.completedAt)[0];
    const available=c=>c.targeted?(!bank.concepts.find(x=>x.id===last?.concept)?.targeted&&!(s.cards[c.id]?.lastExposure>now-DAY)):!c.questionFirst||!(s.cards[c.id]?.lastExposure>now-DAY);
@@ -62,6 +113,8 @@
    const concept=bank.concepts.find(c=>c.id===preferred)||recommend(s,bank,now)||(allowPractice?bank.concepts.filter(c=>s.cards[c.id]&&!c.targeted).sort((a,b)=>s.cards[a.id].lastExposure-s.cards[b.id].lastExposure)[0]:null);if(!concept)return null;const c=s.cards[concept.id],review=!!c,scaffold=!!c&&c.failures>=2;
    const session={id:'i'+(++s.serial)+'-'+(root.crypto?.randomUUID?.()||Math.random().toString(36).slice(2)),concept:concept.id,level:c?.recalls>=2?'application':'basic',stage:review&&!scaffold?'question':'lesson',startedAt:now,selected:null,confidence:null,paraphrased:false,retryParaphrased:false,retrySelected:null,error:null,answeredAt:0,completedAt:0,correct:null,delayedProbe:null,retryAnswers:[],retryErrors:[],retrySubmitted:false,assisted:!review||scaffold,scaffold,englishHelp:false,moreChosen:false,review,closed:false};
    if(concept.targeted||concept.questionFirst){session.targetedPractice=true;session.stage='question';session.assisted=false;session.scaffold=false;session.questionIndex=leastRecent(s,concept,concept.probeQuestions);session.retryIndex=concept.supportQuestions[0];}
+   const challenge=challengeChoice(s,concept,now);
+   if(challenge){session.targetedPractice=true;session.stage='question';session.assisted=false;session.scaffold=false;session.level='application';session.questionIndex=challenge.index;session.retryIndex=challenge.route.supportIndex;}
    if(concept.id==='xlinked'&&c&&now-c.lastExposure>=DAY&&now>=c.due){
      const history=s.sessions.filter(a=>a.concept===concept.id);
      if(history.some(a=>a.familyExampleSeen)&&!history.some(a=>a.familyPedigree)){
@@ -77,7 +130,7 @@
    const concept=bank.concepts.find(c=>c.id===a.concept),q=question(bank,a),c=s.cards[a.concept]||card();
    const delayed=c.attempts>0&&a.startedAt-c.lastExposure>=DAY&&!a.assisted;
    const eligible=delayed&&a.startedAt>=c.due,previousDue=c.due;
-   a.delayedProbe=eligible;a.correct=a.selected===q.answer;a.answeredAt=now;if(a.targetedPractice)a.retryIndex=leastRecent(s,concept,a.correct&&a.confidence==='sure'?concept.transferQuestions:concept.supportQuestions,a.questionIndex);a.stage='feedback';c.attempts++;
+   a.delayedProbe=eligible;a.correct=a.selected===q.answer;a.answeredAt=now;if(a.targetedPractice){const r=challengeRoute(concept,a.questionIndex);a.retryIndex=r?(a.correct&&a.confidence==='sure'?r.applicationIndex:r.supportIndex):leastRecent(s,concept,a.correct&&a.confidence==='sure'?concept.transferQuestions:concept.supportQuestions,a.questionIndex);}a.stage='feedback';c.attempts++;
    if(a.correct){
      c.failures=0;c.successes=a.confidence==='sure'?c.successes+1:0;
      if(a.confidence==='sure'){if(eligible)c.recalls++;c.interval=eligible?Math.min(60*DAY,Math.max(DAY,c.interval*2)):Math.max(DAY,c.interval);}else{c.recalls=0;c.interval=4*HOUR;}
@@ -105,5 +158,5 @@
  function stop(s){const a=active(s);if(a)a.closed=true;s.activeId=null;}
  function more(s,bank,now=Date.now()){const a=active(s);if(!a||a.stage!=='done')return null;a.moreChosen=true;a.closed=true;s.activeId=null;return start(s,bank,now,null,true);}
  function progress(s,bank){return {starts:s.sessions.length,completions:s.sessions.filter(a=>a.completedAt).length,more:s.sessions.filter(a=>a.moreChosen).length,reading:s.sessions.filter(a=>a.error==='Lugesin valesti').length+s.sessions.reduce((n,a)=>n+a.retryErrors.filter(x=>x==='Lugesin valesti').length,0),remembered:Object.values(s.cards).filter(c=>c.rememberedAt).length,corrected:Object.values(s.cards).filter(c=>c.correctedAt&&!c.highPending).length,areas:bank.areas.map(area=>({...area,encountered:new Set(s.sessions.filter(a=>bank.concepts.find(c=>c.id===a.concept)?.area===area.id).map(a=>a.concept)).size,total:bank.concepts.filter(c=>c.area===area.id).length}))};}
- const api={KEY,DAY,HOUR,ERRORS,fresh,restore,active,start,expose,submit,classify,beginRetry,retry,retryAgain,classifyRetry,stop,more,progress,recommend,question,retryQuestion};root.ImatEngine=api;if(typeof module==='object'&&module.exports)module.exports=api;
+ const api={KEY,DAY,HOUR,ERRORS,fresh,restore,active,start,expose,submit,classify,beginRetry,retry,retryAgain,classifyRetry,stop,more,progress,recommend,question,retryQuestion,challengeChoice};root.ImatEngine=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);

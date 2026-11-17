@@ -26,10 +26,10 @@ test('All 135 historical question meanings, option order and keys are preserved 
 
 test('Twelve original English questions append to the four existing topics and role pools once',()=>{
  assert.equal(B.concepts.length,30);
- assert.equal(B.concepts.reduce((n,c)=>n+c.questions.length,0),147);
- const ids=B.concepts.flatMap(c=>c.questions.map(q=>q.id));assert.equal(new Set(ids).size,147);
+ assert.equal(B.concepts.reduce((n,c)=>n+c.questions.length,0),163);
+ const ids=B.concepts.flatMap(c=>c.questions.map(q=>q.id));assert.equal(new Set(ids).size,163);
  for(const [id,base] of Object.entries(added)){
-  const c=concept(id);assert.equal(c.questions.length,base+3);
+  const c=concept(id);assert.equal(c.questions.length,base+3+(c.challengeRoutes?4:0));
   for(const [i,role] of ['probe','support','transfer'].entries()){
    const q=c.questions[base+i];assert.equal(q.id,`${id}-nov06-${role}`);
    assert.equal(q.practiceRelease,'2026-11-06');assert.equal(q.language,'en');

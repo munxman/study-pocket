@@ -49,7 +49,7 @@ test('repair diagnostics derive current question totals from the loaded bank',as
  const nodes=Object.fromEntries(['repair-state','repair-report','repair-update','repair-sync','repair-inventory','repair-copy','repair-copy-state'].map(id=>[id,{textContent:''}]));
  const ctx={IMAT_CONTENT:BANK,BackupModel:M,BackupStore:{snapshot:()=>M.fresh(T)},localStorage:{getItem:()=>null},location:{origin:'https://example.test',pathname:'/repair.html'},navigator:{},document:{getElementById:id=>nodes[id]},addEventListener(){}};ctx.window=ctx;
  vm.createContext(ctx);await vm.runInContext(fs.readFileSync('src/repair-tools.js','utf8'),ctx);
- const count=BANK.concepts.reduce((n,c)=>n+c.questions.length,0);assert.equal(count,147);assert.match(nodes['repair-inventory'].textContent,new RegExp(BANK.concepts.length+' teemat ja '+count+' küsimust'));assert.ok(nodes['repair-report'].textContent.includes(count+' küsimust'));
+ const count=BANK.concepts.reduce((n,c)=>n+c.questions.length,0);assert.equal(count,163);assert.match(nodes['repair-inventory'].textContent,new RegExp(BANK.concepts.length+' teemat ja '+count+' küsimust'));assert.ok(nodes['repair-report'].textContent.includes(count+' küsimust'));
  const html=fs.readFileSync('src/repair.html','utf8');assert.ok(html.includes('imat-content.js'));assert.ok(html.includes('imat-english.js'));assert.doesNotMatch(fs.readFileSync('src/repair-tools.js','utf8'),/135 küsimust/);
 });
 test('home distinguishes the fresh original simulation from the old official repeat',()=>{

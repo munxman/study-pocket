@@ -34,7 +34,7 @@ test('New trial questions do not replace or copy existing question IDs or exact 
  for(const q of B.questions){assert.ok(!ids.has(q.id),q.id);assert.ok(!prompts.has(normalise(q.prompt)),q.id);}
  assert.equal(new Set(B.questions.map(q=>normalise(q.prompt))).size,12);
  assert.equal(old.id,'imat-2025-biology-taster-1');assert.equal(old.questions.length,12);
- assert.equal(ordinary.concepts.length,30);assert.equal(ordinary.concepts.reduce((n,c)=>n+c.questions.length,0),147);
+ assert.equal(ordinary.concepts.length,30);assert.equal(ordinary.concepts.reduce((n,c)=>n+c.questions.length,0),163);
 });
 
 test('Browser loading exposes a separate bank without replacing the official bank',()=>{

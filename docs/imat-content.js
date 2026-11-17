@@ -116,5 +116,276 @@
   ],promptToThink:'First draw one arrow for each gas. Then compare area and thickness without changing those arrows.'}
  };
  for(const [id,example] of Object.entries(guidedExamples))concepts.find(c=>c.id===id).guidedExample=example;
- const bank={version:1,areas,concepts,sources,gaps};root.IMAT_CONTENT=bank;if(typeof module==='object'&&module.exports)module.exports=bank;
+
+ // November 17: bounded original challenge routes. The English companion installs
+ // these after all historical appends, preserving every existing question index.
+ const challengePacks=[
+  {
+    "concept": "gas-exchange",
+    "skill": "diffusion_area_thickness_rate",
+    "baselineIndices": [
+      1,
+      2
+    ],
+    "relatedIndices": [
+      1,
+      2,
+      4,
+      5,
+      9
+    ],
+    "rows": [
+      [
+        "Two membrane modules use the same material and have the same thickness and oxygen partial-pressure difference. Module A has an exchange area of 2 cm² and transfers 6 micromoles of oxygen per minute. Module B has an area of 5 cm². In the same simple diffusion model, what transfer rate is predicted for B?",
+        [
+          "15 micromoles per minute",
+          "6 micromoles per minute",
+          "2.4 micromoles per minute",
+          "30 micromoles per minute",
+          "The oxygen must move in the opposite direction"
+        ],
+        0,
+        "The larger area provides more equivalent paths across the membrane. The area is 5/2 times as large, so the predicted transfer is 6 × 5/2 = 15 micromoles per minute. Material, thickness and pressure difference are unchanged."
+      ],
+      [
+        "An artificial exchange membrane initially transfers 8 units of gas per minute. Its area is tripled and its thickness is doubled; the gas, material and non-zero partial-pressure difference remain unchanged. Which new rate and explanation fit the simple diffusion model?",
+        [
+          "24 units/min: only area matters",
+          "4 units/min: only thickness matters",
+          "12 units/min: the area effect is multiplied by the inverse thickness effect",
+          "8 units/min: any two changes cancel",
+          "48 units/min: a thicker barrier speeds up diffusion"
+        ],
+        2,
+        "Area creates parallel paths; thickness lengthens each path. The combined change is 3 ÷ 2 = 1.5, giving 8 × 1.5 = 12 units/min. This predicts a rate, not a reversal of the gas gradient."
+      ],
+      [
+        "Two otherwise identical exchange surfaces have the same gas-pressure difference. One has twice the area but the same thickness. Why can it transfer more gas per second?",
+        [
+          "More area provides more parallel paths for diffusion",
+          "A larger area reverses the pressure difference",
+          "The gas changes into a different molecule",
+          "Each molecule must travel twice as far",
+          "The membrane must use ATP directly"
+        ],
+        0,
+        "With material, thickness and pressure difference fixed, more area provides more simultaneous paths. Diffusion rate increases in proportion to area in this model."
+      ],
+      [
+        "A replacement membrane has half the area and half the thickness of the original. The gas, membrane material and non-zero partial-pressure difference are the same, and all other conditions are fixed. What happens to the predicted diffusion rate?",
+        [
+          "It becomes four times as large",
+          "It becomes half as large",
+          "It becomes zero",
+          "It stays the same",
+          "It becomes twice as large"
+        ],
+        3,
+        "Halving area halves the rate, while halving thickness doubles it. The factors cancel: 0.5 ÷ 0.5 = 1. The conclusion requires the other stated conditions to stay fixed."
+      ]
+    ]
+  },
+  {
+    "concept": "digestion-absorption",
+    "skill": "chemical_digestion_vs_absorption",
+    "baselineIndices": [
+      0
+    ],
+    "relatedIndices": [
+      0,
+      1,
+      6
+    ],
+    "rows": [
+      [
+        "In an artificial intestine, an enzyme converts starch into smaller sugars inside a chamber. The chamber wall does not let these sugars cross, and none appear outside. Which conclusion is supported?",
+        [
+          "Absorption occurred but chemical digestion did not",
+          "Chemical digestion occurred, but the products have not been absorbed across the wall",
+          "Neither process occurred because the sugars stayed inside",
+          "Digestion requires sugars to be in the blood first",
+          "The starch crossed the wall unchanged"
+        ],
+        1,
+        "Breaking starch into smaller molecules is chemical digestion. Crossing the intestinal barrier is a separate step, absorption. The model shows digestion even though movement across its wall is blocked."
+      ],
+      [
+        "Two otherwise identical artificial-intestine preparations receive either starch or glucose. In preparation X, glucose supplied directly can cross into the receiving chamber, but starch is not converted into smaller sugars. Which part is most directly impaired?",
+        [
+          "The ability to absorb every nutrient",
+          "All movement through the receiving chamber",
+          "The chemical breakdown needed before starch products can be absorbed",
+          "The movement of already supplied glucose",
+          "The production of red blood cells"
+        ],
+        2,
+        "Directly supplied glucose can cross, so that observed transport route works. The missing step for starch is its chemical breakdown into smaller products. These observations do not prove that every other nutrient is absorbed normally."
+      ],
+      [
+        "An enzyme cuts a large food molecule into smaller molecules while all of them remain inside the intestinal lumen. What has happened?",
+        [
+          "Absorption into blood",
+          "Circulation around the body",
+          "Chemical digestion",
+          "Kidney filtration",
+          "Cell division"
+        ],
+        2,
+        "Chemical digestion changes large molecules into smaller molecules by breaking chemical bonds. The products do not have to cross the intestinal wall for digestion to have occurred."
+      ],
+      [
+        "A protease breaks a protein into smaller products in the intestine. Amino acids then cross the intestinal epithelium into the blood. Which order describes these two steps?",
+        [
+          "Absorption, then digestion",
+          "Digestion, then absorption",
+          "Filtration, then ventilation",
+          "Diffusion of protein, then DNA replication",
+          "Circulation, then starch synthesis"
+        ],
+        1,
+        "The chemical breakdown is digestion. The later movement of amino acids across the intestinal barrier into the body is absorption. A success in one step does not establish that the other works."
+      ]
+    ]
+  },
+  {
+    "concept": "cell-cycle-control",
+    "skill": "spindle_checkpoint_distribution",
+    "baselineIndices": [
+      2
+    ],
+    "relatedIndices": [
+      2,
+      4
+    ],
+    "rows": [
+      [
+        "A cell has copied its DNA, but one chromosome still has an unattached kinetochore. An experimental treatment overrides the checkpoint and starts sister-chromatid separation. Which consequence is more likely?",
+        [
+          "Every chromosome is copied a second time immediately",
+          "The two daughter cells may receive unequal chromosome sets",
+          "The unattached chromosome is guaranteed to attach correctly",
+          "Both daughters must receive exactly the normal set",
+          "All DNA is converted into RNA"
+        ],
+        1,
+        "The spindle checkpoint normally delays separation while attachment requirements are unmet. Overriding it can allow an unattached chromosome to segregate incorrectly. Unequal distribution is a risk, not a guaranteed outcome in every treated cell."
+      ],
+      [
+        "Two cell populations replicate DNA normally. When a chromosome fails to attach to the spindle, population A delays chromatid separation; population B separates chromatids anyway and more often produces daughter cells with unequal chromosome numbers. Which defect best explains B?",
+        [
+          "A missing starch-digesting enzyme",
+          "Too much water entering by osmosis",
+          "A failure to delay separation when spindle attachment is incomplete",
+          "A complete inability to copy DNA",
+          "A lack of ribosomes in every daughter cell"
+        ],
+        2,
+        "Normal DNA replication does not guarantee correct chromosome distribution. The observations point to failure of the attachment-dependent delay before separation. A checkpoint changes when division proceeds; it does not itself copy DNA or physically attach every chromosome."
+      ],
+      [
+        "One chromosome has not attached properly to the spindle. Which response helps protect equal chromosome distribution?",
+        [
+          "Immediately separate all sister chromatids",
+          "Delay separation while attachment is corrected",
+          "Remove every chromosome from the cell",
+          "Skip all future DNA replication",
+          "Convert the spindle into a cell wall"
+        ],
+        1,
+        "Waiting allows the attachment problem to be corrected before chromatids separate. This reduces the risk that daughter cells receive unequal chromosome sets."
+      ],
+      [
+        "A checkpoint prevents sister-chromatid separation while an attachment problem remains. The attachment is then corrected and the cell continues division. What did the checkpoint do?",
+        [
+          "It permanently prevented every cell division",
+          "It copied the chromosome itself",
+          "It delayed a transition until a condition was met",
+          "It guaranteed that mutations can never occur",
+          "It changed every chromosome into a gamete"
+        ],
+        2,
+        "The checkpoint controlled the timing of a transition. It allowed correction before separation, rather than replacing DNA replication or guaranteeing that every possible error was absent."
+      ]
+    ]
+  },
+  {
+    "concept": "respiration-coupling",
+    "skill": "proton_gradient_atp_dependence",
+    "baselineIndices": [
+      1
+    ],
+    "relatedIndices": [
+      1,
+      2,
+      6
+    ],
+    "rows": [
+      [
+        "An experiment finds that mitochondria continue using oxygen after a proton-leak pathway opens in the inner membrane, but their ATP production falls sharply. ATP synthase is still intact and ADP and phosphate are available. Which explanation fits both observations?",
+        [
+          "Oxygen use guarantees the same ATP yield",
+          "ATP synthase must have become a DNA polymerase",
+          "The leak preserves a larger proton gradient",
+          "Protons can return without driving ATP synthase, weakening the gradient that couples respiration to ATP production",
+          "Oxygen is the material from which ATP is built directly"
+        ],
+        3,
+        "Electron transfer and oxygen consumption can continue while proton leakage reduces the gradient available to ATP synthase. Oxygen consumption alone therefore does not establish an unchanged ATP yield."
+      ],
+      [
+        "Sealed membrane vesicles contain working ATP synthase, ADP and phosphate, but no electron transport chain. Researchers impose a proton gradient in the direction that drives ATP synthase. What is predicted until this gradient dissipates?",
+        [
+          "No ATP can be made because a gradient is never an energy source",
+          "Some ATP can be made; production then falls as the imposed gradient disappears",
+          "ATP production continues forever without an energy input",
+          "DNA replication must replace ATP synthesis",
+          "ATP synthase can work only when oxygen binds directly to it"
+        ],
+        1,
+        "The immediate energy source for ATP synthase is proton movement down an appropriate electrochemical gradient. An imposed gradient can drive some ATP synthesis without an electron transport chain; without replenishment, that gradient runs down."
+      ],
+      [
+        "ATP synthase is intact, but the inner mitochondrial membrane cannot maintain a proton gradient. Why does ATP production through ATP synthase fall?",
+        [
+          "The enzyme lacks the proton-driving force needed to couple flow to ATP synthesis",
+          "All glucose must instantly disappear",
+          "The cell must lose all of its DNA",
+          "Oxygen is automatically converted into ATP",
+          "Ribosomes take the place of ATP synthase"
+        ],
+        0,
+        "Having the enzyme is not enough: it also needs a suitable proton gradient. Losing that driving force reduces ATP synthesis by this pathway, even if other parts of the cell still work."
+      ],
+      [
+        "Two mitochondrial preparations have intact ATP synthase and sufficient ADP and phosphate. Only preparation A maintains a suitable proton gradient. Which comparison is best supported?",
+        [
+          "B must produce more ATP through ATP synthase because its gradient is absent",
+          "Both must produce identical amounts of ATP merely because ATP synthase is present",
+          "A can drive ATP synthesis using the gradient; enzyme presence alone is insufficient in B",
+          "Neither can produce ATP unless DNA is copied first",
+          "The gradient determines only protein digestion"
+        ],
+        2,
+        "ATP synthase couples proton flow down a gradient to ATP production. Both working enzyme and the driving gradient matter; the enzyme alone cannot replace the energy source."
+      ]
+    ]
+  }
+];
+ function installChallenges(bank){
+   for(const pack of challengePacks){
+     const c=bank.concepts.find(c=>c.id===pack.concept),prefix=pack.concept+'-nov17-';
+     if(!c||c.questions.some(q=>q.id===prefix+'challenge-1'))continue;
+     const base=c.questions.length,roles=['challenge-1','challenge-2','support','application'];
+     c.questions.push(...pack.rows.map(([prompt,choices,answer,explanation],i)=>({
+       id:prefix+roles[i],level:i<2?'application':'retry',prompt,
+       options:choices.map(en=>({en,why:explanation})),answer,explanation,
+       task:'Use the observations and stated conditions to choose the best supported conclusion.',
+       clue:'Check which conditions change and which stay the same; connect the conclusion to those observations.',
+       language:'en',skill:pack.skill,practiceRelease:'2026-11-17',practiceRole:roles[i]
+     })));
+     c.challengeRoutes=[{skill:pack.skill,baselineIndices:pack.baselineIndices,relatedIndices:pack.relatedIndices,challengeIndices:[base,base+1],supportIndex:base+2,applicationIndex:base+3}];
+   }
+   return bank;
+ }
+ const bank={version:1,areas,concepts,sources,gaps,installChallenges};root.IMAT_CONTENT=bank;if(typeof module==='object'&&module.exports)module.exports=bank;
 })(typeof window!=='undefined'?window:globalThis);
