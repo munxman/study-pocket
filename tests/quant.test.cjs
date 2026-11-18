@@ -31,12 +31,71 @@ test('An early open cannot acquire delayed credit simply by being left open; sup
 function screen(subject='maths',initial=null,options={}){
  const chemistry=require('../src/chemistry-content.js'),banks={...bank(),chemistry},search=options.search??'?subject='+subject,requested=new URLSearchParams(search).get('subject'),selected=Object.hasOwn(banks,requested)?requested:'maths',b=banks[selected];
  const saved=new Map(Object.entries(options.modules||{}).map(([key,value])=>[key,JSON.stringify(value)])),writes=[];if(initial)saved.set(b.key,JSON.stringify(initial));
- const events={},main={innerHTML:'',focus(){},addEventListener:(n,f)=>events[n]=f},location={search,hash:options.hash||'',href:'https://study.example/quant.html'+search+(options.hash||'')},replaced=[];
+ const events={},subscriptions={},main={innerHTML:'',focus(){},addEventListener:(n,f)=>events[n]=f},location={search,hash:options.hash||'',href:'https://study.example/quant.html'+search+(options.hash||'')},replaced=[];
  const history={replaceState(_state,_title,value){const next=new URL(value,location.href);replaced.push(next.href);location.href=next.href;location.search=next.search;location.hash=next.hash;}};
- const ctx={QuantContent:{subjects:bank()},ChemistryContent:chemistry,QuantEngine:E,URLSearchParams,location,history,document:{getElementById:()=>main},StudySync:{storage:{getItem:key=>saved.get(key)||null,setItem:(key,value)=>{writes.push(key);saved.set(key,value);}},subscribe(){}}};
+ const ctx={QuantContent:{subjects:bank()},ChemistryContent:chemistry,QuantEngine:E,URLSearchParams,location,history,document:{getElementById:()=>main},StudySync:{storage:{getItem:key=>saved.get(key)||null,setItem:(key,value)=>{writes.push(key);saved.set(key,value);}},subscribe(key,callback){subscriptions[key]=callback;}}};
  ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('src/quant.js','utf8'),ctx);
- return{main,writes,location,replaced,read:()=>JSON.parse(saved.get(b.key)||'null'),readModule:key=>JSON.parse(saved.get(key)||'null'),change(name,value){events.change({target:{name,value}})},click(action,topic){events.click({target:{closest:()=>({dataset:{action,topic}})}})},submit(){events.submit({preventDefault(){}})}};
+ return{main,writes,location,replaced,read:()=>JSON.parse(saved.get(b.key)||'null'),readModule:key=>JSON.parse(saved.get(key)||'null'),sync(data){subscriptions[b.key](data);},change(name,value){events.change({target:{name,value}})},click(action,topic){events.click({target:{closest:()=>({dataset:{action,topic}})}})},submit(){events.submit({preventDefault(){}})}};
 }
+test('quantitative sync keeps the displayed draft when another device changes its active task',()=>{
+ const banks={...bank(),chemistry:require('../src/chemistry-content.js')};
+ for(const [subject,b]of Object.entries(banks)){
+  const base=E.fresh(),a=E.start(base,b,now,b.topics[0].id),local=structuredClone(base),remote=structuredClone(base);
+  E.active(local).selected=1;E.active(local).confidence='unsure';
+  const other=E.start(remote,b,now+10,b.topics[1].id),merged=S.merge(b.key,base,local,remote),frozen=structuredClone(merged);
+  assert.equal(merged.activeId,other.id,'fixture reproduces the remote active-task change');
+  const h=screen(subject,local);h.sync(merged);
+  assert.match(h.main.innerHTML,/name="choice" value="1" checked/);
+  assert.match(h.main.innerHTML,/name="confidence" value="unsure" checked/);
+  assert.ok(h.main.innerHTML.includes(E.topic(b,a).questions[a.questionIndex].prompt));
+  assert.deepEqual(merged,frozen,'rendering does not mutate the incoming snapshot');
+  assert.equal(h.writes.length,0,'sync presentation creates no learner write or new attempt');
+  h.change('confidence','sure');
+  assert.equal(h.read().activeId,a.id);assert.equal(E.active(h.read()).selected,1);
+  assert.equal(h.read().sessions.length,2);assert.deepEqual(h.read().sessions.find(x=>x.id===other.id),other);
+  h.click('topic',other.concept);assert.equal(h.read().activeId,other.id,'explicit local topic choice still works');
+  h.sync({...h.read(),activeId:a.id});h.change('confidence','unsure');
+  assert.equal(h.read().activeId,other.id,'later sync cannot undo that explicit choice');
+ }
+});
+test('quantitative sync accepts same-attempt support chronology without switching tasks or rewriting first answers',()=>{
+ const b=require('../src/chemistry-content.js');
+ for(const beforeAnswer of [true,false]){
+  const base=E.fresh(),old=E.start(base,b,now-3*E.DAY,b.topics[0].id);finish(base,b,now-3*E.DAY+1);
+  const a=E.start(base,b,now,old.concept),local=structuredClone(base),remote=structuredClone(base);
+  const first=E.active(local);first.selected=E.topic(b,first).questions[first.questionIndex].answer;first.confidence='sure';
+  assert.ok(E.submit(local,b,now+100));assert.equal(first.delayedProbe,true);
+  E.help(remote,now+(beforeAnswer?50:150));E.start(remote,b,now+200,b.topics[1].id);
+  const merged=S.merge(b.key,base,local,remote),expected=merged.sessions.find(x=>x.id===a.id),h=screen('chemistry',local);
+  h.sync(merged);assert.match(h.main.innerHTML,/Proovin teist ülesannet/);assert.equal(h.writes.length,0);
+  h.click('check');const saved=E.active(h.read());assert.equal(saved.id,a.id);assert.equal(saved.stage,'check');
+  for(const field of ['selected','confidence','correct','answeredAt','questionIndex','checkIndex','initialSkill','checkSkill'])assert.equal(saved[field],first[field],field+' stays frozen');
+  for(const field of ['assisted','delayedProbe','helpedAt','taughtAt'])assert.equal(saved[field],expected[field],field+' follows the coherent merged chronology');
+  assert.equal(saved.assisted,beforeAnswer);assert.equal(saved.delayedProbe,!beforeAnswer);
+  assert.equal(h.read().sessions.length,3);
+ }
+});
+test('quantitative sync preserves a completed result until the learner chooses to continue',()=>{
+ const b=bank().physics,local=E.fresh(),a=E.start(local,b,now,b.topics[0].id);finish(local,b,now+1,false);
+ const base=structuredClone(local),remote=structuredClone(local),other=E.start(remote,b,now+10,b.topics[1].id);
+ const h=screen('physics',local);h.sync(S.merge(b.key,base,local,remote));
+ assert.match(h.main.innerHTML,/Plokk tehtud/);assert.match(h.main.innerHTML,/Kontrollvastus jäi seekord valeks/);
+ assert.doesNotMatch(h.main.innerHTML,/id="quant-answer"/);assert.equal(h.writes.length,0);
+ h.click('more');assert.equal(h.read().activeId,other.id);assert.equal(h.read().sessions.length,2);
+ assert.deepEqual(h.read().sessions.find(x=>x.id===a.id),{...a,moreChosen:true});
+});
+test('missing or unreadable quantitative sync retains visible work without writing or silently restarting',()=>{
+ const b=bank().maths,local=E.fresh(),a=E.start(local,b,now);a.selected=1;a.confidence='unsure';
+ const h=screen('maths',local),frozen=structuredClone(local);
+ for(const incoming of [E.fresh(),'{broken-json',{...local,version:99}]){
+  h.sync(incoming);assert.match(h.main.innerHTML,/Ühendatud õpiajalugu vajab kontrollimist/);
+  assert.match(h.main.innerHTML,/name="choice" value="1" checked/);
+  assert.match(h.main.innerHTML,/name="confidence" value="unsure" checked/);
+  assert.equal(h.writes.length,0);assert.deepEqual(h.read(),frozen);
+ }
+ h.sync(local);assert.doesNotMatch(h.main.innerHTML,/Ühendatud õpiajalugu vajab kontrollimist/);
+ assert.equal(h.writes.length,0);assert.deepEqual(h.read(),frozen);
+});
 test('Rendered learner flow supports help, uncertainty, reload, wrong checks and voluntary continuation',()=>{
  for(const subject of ['maths','physics']){let h=screen(subject);assert.match(h.main.innerHTML,/Õpin enne vastamist/);h.click('help');assert.match(h.main.innerHTML,/Üks näide/);h.click('check');h.change('choice','0');h.change('confidence','unsure');h.submit();assert.match(h.main.innerHTML,/Proovin teist ülesannet/);h.click('check');h=screen(subject,h.read());assert.equal(E.active(h.read()).stage,'check');h.change('choice','0');h.submit();assert.match(h.main.innerHTML,/Plokk tehtud/);assert.match(h.main.innerHTML,/Tänaseks piisab/);const before=E.active(h.read()).concept;h.click('more');assert.notEqual(E.active(h.read()).concept,before);assert.equal(h.read().sessions.length,2);}
 });

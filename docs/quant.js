@@ -2,7 +2,7 @@
 (()=>{
  const E=window.QuantEngine,params=new URLSearchParams(location.search),banks={...window.QuantContent.subjects,chemistry:window.ChemistryContent},subject=Object.hasOwn(banks,params.get('subject'))&&banks[params.get('subject')]?params.get('subject'):'maths',b=banks[subject],store=window.StudySync.storage,main=document.getElementById('quant-coach'),linked=b.topics.some(t=>t.id===params.get('concept'))?params.get('concept'):null,returnToBiology=params.get('from')==='biology',returnToPlan=params.get('from')==='plan';
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- let s,view=location.hash==='#topics'?'topics':'learn',error='';
+ let s,view=location.hash==='#topics'?'topics':'learn',error='',syncError='';
  try{s=E.restore(store.getItem(b.key),b);}catch(e){main.innerHTML='<h1>Hoiame varasema töö alles.</h1><p>'+esc(e.message)+'</p><a href="./progress.html">Ava varukoopia ja ühenduse olek</a>';return;}
  function save(){try{store.setItem(b.key,JSON.stringify(s));error='';return true;}catch{error='Salvestamine ei õnnestunud. Hoia leht avatuna ja salvesta varukoopia. Varasemat tööd ei kustutata.';return false;}}
  function topics(){return `<h2>Valin teema</h2><p>${b.topics.length} algusteemat, mitte kogu eksamikava. Võid alustada sobivast kohast.</p><ul class="quant-topics">`+b.topics.map(t=>{const n=s.sessions.filter(a=>a.concept===t.id&&a.completedAt).length;return `<li><button class="backup-secondary" data-action="topic" data-topic="${esc(t.id)}">${esc(t.title)}<small>${esc(t.english)} · ${n} lõpetatud plokki</small></button></li>`;}).join('')+'</ul>';}
@@ -16,7 +16,7 @@
   else if(a.stage==='lesson')body=lesson(t,a);
   else if(a.stage==='done')body=`<h2>Plokk tehtud.</h2><p class="quant-feedback">${a.checkCorrect?'Kontrollvastus oli õige.':'Kontrollvastus jäi seekord valeks — saad ikkagi edasi minna.'}</p>${checkIdea(t,a)}<p>${esc(t.questions[a.checkIndex].explanation)}</p><p class="backup-muted">Selgituse järel tehtud kontroll on harjutamine. Hilisem iseseisev vastus näitab paremini, mis meelde jäi.</p>${window.VideoLinks?.slot(window.VIDEO_CONTENT,subject,t.id,a,'check')||''}<div class="quant-actions">${returnToPlan?'<a class="backup-primary" href="'+esc(next.href)+'">'+esc(next.label)+'</a>':''}${button('more','Veel üks · teine teema',returnToPlan?'secondary':'primary')}${button('topics','Valin ise')}<a class="backup-secondary" href="./index.html">Tänaseks piisab</a></div>`;
   else {const check=a.stage==='check',q=t.questions[check?a.checkIndex:a.questionIndex];body=`<p class="backup-muted">${esc(t.title)} · ${esc(t.english)}</p>${check?'<p class="quant-coach-note">Proovi sama võtet teises ülesandes. Võid kasutada paberit.</p>'+button('help','Vaatan selgitust uuesti'):`<p class="quant-coach-note">Proovi oma mõtet. Kui teema on võõras, ava kõigepealt selgitus — sa ei pea arvama.</p>${button('help','Õpin enne vastamist')}`}<h2 class="quant-question">${esc(q.prompt)}</h2>${options(q,a,check)}`;}
-  main.innerHTML=`<p class="backup-muted">${esc(b.title.toUpperCase())} · ÜKS MÕTE KORRAGA</p><h1>${esc(b.title)}</h1><p>Väike algus, selgitus ja uus näide. Jätkamise valid ise.</p><nav class="quant-actions" aria-label="Aine valikud">${button('topics','Teemad')}${button('resume','Jätkan pooleli')}<a class="backup-secondary" href="./videos.html?subject=${subject}">Valikulised videod</a>${Object.entries(banks).filter(([id,bank])=>id!==subject&&bank).map(([id,bank])=>`<a class="backup-secondary" href="./quant.html?subject=${id}">${esc(bank.title)}</a>`).join('')}${returnToBiology?'<a class="backup-secondary" href="./imat.html#learn">Tagasi bioloogia juurde</a>':''}</nav><p class="quant-error" role="alert">${esc(error)}</p><section class="backup-card">${body}</section>`;
+  main.innerHTML=`<p class="backup-muted">${esc(b.title.toUpperCase())} · ÜKS MÕTE KORRAGA</p><h1>${esc(b.title)}</h1><p>Väike algus, selgitus ja uus näide. Jätkamise valid ise.</p><nav class="quant-actions" aria-label="Aine valikud">${button('topics','Teemad')}${button('resume','Jätkan pooleli')}<a class="backup-secondary" href="./videos.html?subject=${subject}">Valikulised videod</a>${Object.entries(banks).filter(([id,bank])=>id!==subject&&bank).map(([id,bank])=>`<a class="backup-secondary" href="./quant.html?subject=${id}">${esc(bank.title)}</a>`).join('')}${returnToBiology?'<a class="backup-secondary" href="./imat.html#learn">Tagasi bioloogia juurde</a>':''}</nav><p class="quant-error" role="alert">${esc([error,syncError].filter(Boolean).join(' '))}</p><section class="backup-card">${body}</section>`;
  }
  function render(){draw();main.focus({preventScroll:true});}
  const requestedNext=returnToPlan&&params.get('next')==='1';
@@ -24,5 +24,16 @@
  main.addEventListener('change',e=>{const a=E.active(s);if(!a)return;if(e.target.name==='choice')a[a.stage==='check'?'checkSelected':'selected']=Number(e.target.value);if(e.target.name==='confidence')a.confidence=e.target.value;save();});
  main.addEventListener('submit',e=>{e.preventDefault();const a=E.active(s);if(!a)return;const ok=a.stage==='check'?E.check(s,b):a.selected!==null&&E.submit(s,b);if(!ok){error=a.stage==='check'?'Vali kõigepealt vastus.':'Vali vastus ja kindlus või vajuta „Ma ei tea veel”.';draw();return;}save();render();});
  main.addEventListener('click',e=>{const x=e.target.closest('[data-action]');if(!x)return;const a=E.active(s);switch(x.dataset.action){case'topics':view='topics';break;case'resume':view='learn';if(!a||a.stage==='done')E.start(s,b);break;case'topic':view='learn';E.start(s,b,Date.now(),x.dataset.topic);break;case'help':E.help(s);break;case'check':E.beginCheck(s);break;case'unknown':if(a?.stage!=='question')return;a.selected=null;a.confidence=null;E.submit(s,b);break;case'more':E.more(s,b);break;default:return;}save();render();});
- window.StudySync.subscribe(b.key,data=>{try{s=E.restore(data,b);draw();}catch{error='Kontolt saabunud uuema õppepaketi töö jäi alles. Kontrolli uuendust.';draw();}});
+ window.StudySync.subscribe(b.key,data=>{
+  const displayedId=E.active(s)?.id;
+  try{
+   const next=E.restore(data,b);
+   if(displayedId&&!next.sessions.some(a=>a.id===displayedId))throw Error('Displayed attempt missing');
+   // Sync may choose another device's active task. Keep this page on its own
+   // attempt, while accepting the merged answers, help history and saved stage.
+   if(displayedId)next.activeId=displayedId;
+   s=next;syncError='';
+  }catch{syncError='Ühendatud õpiajalugu vajab kontrollimist. Praegune töö jääb avatuks; vaata „Minu töö ja varukoopia”.';}
+  draw();
+ });
 })();
